@@ -1,4 +1,4 @@
-package com.digtitral.miniappsdk.state
+package com.digitral.miniappsdk.state
 
 import android.content.Context
 

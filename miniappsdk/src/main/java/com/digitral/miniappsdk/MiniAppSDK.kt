@@ -1,15 +1,14 @@
-package com.digtitral.miniappsdk
+package com.digitral.miniappsdk
 
 import android.content.Context
-import android.widget.LinearLayout
-import com.digtitral.miniappsdk.analytics.SDKAnalyticsTracker
-import com.digtitral.miniappsdk.api.MiniAppApi
-import com.digtitral.miniappsdk.data.MiniAppRepositoryImpl
-import com.digtitral.miniappsdk.domain.model.MiniAppService
-import com.digtitral.miniappsdk.domain.repository.MiniAppRepository
-import com.digtitral.miniappsdk.state.SDKState
-import com.digtitral.miniappsdk.ui.BannerView
 import androidx.viewpager2.widget.ViewPager2
+import com.digitral.miniappsdk.analytics.SDKAnalyticsTracker
+import com.digitral.miniappsdk.api.MiniAppApi
+import com.digitral.miniappsdk.data.MiniAppRepositoryImpl
+import com.digitral.miniappsdk.domain.model.MiniAppService
+import com.digitral.miniappsdk.domain.repository.MiniAppRepository
+import com.digitral.miniappsdk.state.SDKState
+import com.digitral.miniappsdk.ui.BannerPagerAdapter
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -51,16 +50,14 @@ public object MiniAppSDK {
 
         SDKState.set(context = appContext, appId = appId, baseUrl = baseUrl, initialized = true)
         analyticsTracker = SDKAnalyticsTracker(appContext)
-        repository = MiniAppRepositoryImpl(api = api, appId = appId)
+        repository = MiniAppRepositoryImpl(api = api)
         trackInternalEvent("SDK_Initialized")
     }
 
     @JvmStatic
     public fun fetchMiniAppServices(
-        page: Int = 1,
         callback: (Result<List<MiniAppService>>) -> Unit
     ): Unit {
-        require(page > 0) { "page must be > 0" }
         checkInit()
         val currentRepository = repository ?: return callback(
             Result.failure(IllegalStateException("Repository is not initialized"))
@@ -68,7 +65,7 @@ public object MiniAppSDK {
 
         sdkScope.launch {
             try {
-                val data = currentRepository.fetchServices(page)
+                val data = currentRepository.fetchServices()
                 withContext(Dispatchers.Main) {
                     callback(Result.success(data))
                 }
@@ -83,43 +80,18 @@ public object MiniAppSDK {
     @JvmStatic
     public fun fetchMiniAppServicesWithUI(
         context: Context,
-        page: Int = 1,
-        callback: (Result<Pair<List<MiniAppService>, BannerView>>) -> Unit
+        callback: (Result<Pair<List<MiniAppService>, ViewPager2>>) -> Unit
     ): Unit {
-        fetchMiniAppServices(page = page) { result ->
+        fetchMiniAppServices { result ->
             result.onSuccess { list ->
-                val banner = BannerView(context)
-                if (list.isEmpty()) {
-                    callback(Result.success(Pair(list, banner)))
-                    return@onSuccess
-                }
-
-                val viewPager = ViewPager2(context).apply {
-                    layoutParams = LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.MATCH_PARENT,
-                        LinearLayout.LayoutParams.WRAP_CONTENT
-                    )
-                    adapter = com.digtitral.miniappsdk.ui.BannerPagerAdapter(list)
-                }
-                banner.bindPager(items = list, viewPager = viewPager)
-                callback(Result.success(Pair(list, banner)))
+                val pager = ViewPager2(context)
+                pager.adapter = BannerPagerAdapter(list)
+                callback(Result.success(Pair(list, pager)))
             }.onFailure {
                 callback(Result.failure(it))
             }
         }
     }
-
-    @Synchronized
-    @JvmStatic
-    public fun shutdown(): Unit {
-        repository = null
-        SDKState.clear()
-        trackInternalEvent("SDK_Shutdown")
-        analyticsTracker = null
-    }
-
-    @JvmStatic
-    public fun isInitialized(): Boolean = SDKState.initialized
 
     private fun checkInit(): Unit {
         if (!SDKState.initialized || repository == null) {

@@ -1,4 +1,4 @@
-package com.digtitral.miniappsdk.domain.model
+package com.digitral.miniappsdk.domain.model
 
 public data class MiniAppService(
     public val id: String,

@@ -1,6 +1,6 @@
-package com.digtitral.miniappsdk.api
+package com.digitral.miniappsdk.api
 
-import com.digtitral.miniappsdk.domain.model.MiniAppService
+import com.digitral.miniappsdk.domain.model.MiniAppService
 import retrofit2.http.GET
 
 internal interface MiniAppApi {

@@ -4,7 +4,7 @@ This project is configured to publish `miniapp-android-sdk` as a Maven artifact.
 
 ## Coordinates
 
-- `groupId`: `com.digtitral`
+- `groupId`: `com.digitral`
 - `artifactId`: `miniapp-android-sdk`
 - `version`: `1.0.0`
 

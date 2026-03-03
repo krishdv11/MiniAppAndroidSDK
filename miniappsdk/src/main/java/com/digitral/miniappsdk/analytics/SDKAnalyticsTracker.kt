@@ -1,4 +1,4 @@
-package com.digtitral.miniappsdk.analytics
+package com.digitral.miniappsdk.analytics
 
 import android.content.Context
 import android.util.Log

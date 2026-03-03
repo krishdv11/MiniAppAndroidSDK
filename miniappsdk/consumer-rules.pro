@@ -1,4 +1,4 @@
--keep class com.digtitral.miniappsdk.** { *; }
+-keep class com.digitral.miniappsdk.** { *; }
 -dontwarn retrofit2.**
 -dontwarn okhttp3.**
 -keepattributes Signature

@@ -5,11 +5,11 @@ plugins {
     id 'signing'
 }
 
-group = "com.digtitral"
+group = "com.digitral"
 version = "1.0.0"
 
 android {
-    namespace 'com.digtitral.miniappsdk'
+    namespace 'com.digitral.miniappsdk'
     compileSdk 34
 
     defaultConfig {
@@ -61,13 +61,13 @@ dependencies {
     implementation "com.github.bumptech.glide:glide:4.16.0"
 
     // ViewPager2
-    implementation "androidx.viewpager2:viewpager2:1.0.0"
+    implementation "androidx.viewpager2:viewpager2:1.1.0"
 }
 
 publishing {
     publications {
         release(MavenPublication) {
-            groupId = "com.digtitral"
+            groupId = "com.digitral"
             artifactId = "miniapp-android-sdk"
             version = "1.0.0"
 

@@ -1,13 +1,12 @@
 # MiniApp Android SDK
 
-`MiniApp Android SDK` is a lightweight, self-contained Android library from `digtitral` for fetching MiniApp services and rendering a ready-to-use banner UI component.
+`MiniApp Android SDK` is a lightweight, self-contained Android library from `digitral` for fetching MiniApp services and rendering a ready-to-use banner UI component.
 
 The SDK is host-app friendly:
 
 - no DI framework requirement
 - no Hilt requirement
 - coroutine-based async API with safe callbacks
-- pagination support
 - retry-on-IO-failure strategy
 
 ## Installation (JitPack)
@@ -29,7 +28,7 @@ dependencyResolutionManagement {
 
 ```kotlin
 dependencies {
-    implementation("com.github.krishdv11:MiniAppAndroidSDK:1.0.0")
+    implementation("com.github.krishdv11:MiniAppAndroidSDK:v1.0.0")
 }
 ```
 
@@ -43,10 +42,18 @@ MiniAppSDK.initWithAppID(
 )
 ```
 
+## Host App Requirement
+
+Ensure the host app manifest includes internet access:
+
+```xml
+<uses-permission android:name="android.permission.INTERNET" />
+```
+
 ## Fetch Services
 
 ```kotlin
-MiniAppSDK.fetchMiniAppServices(page = 1) { result ->
+MiniAppSDK.fetchMiniAppServices { result ->
     result.onSuccess { services ->
         // Use service list
     }.onFailure { throwable ->
@@ -58,10 +65,10 @@ MiniAppSDK.fetchMiniAppServices(page = 1) { result ->
 ## Fetch Services + Banner UI
 
 ```kotlin
-MiniAppSDK.fetchMiniAppServicesWithUI(context = this, page = 1) { result ->
-    result.onSuccess { (services, bannerView) ->
-        container.addView(bannerView)
-        // bannerView is already bound to the first service when available
+MiniAppSDK.fetchMiniAppServicesWithUI(context = this) { result ->
+    result.onSuccess { (services, bannerPager) ->
+        container.addView(bannerPager)
+        // bannerPager is a ViewPager2 showing service banners
     }.onFailure { throwable ->
         // Handle error
     }
@@ -75,7 +82,7 @@ The SDK follows a clean, layered structure:
 - `api/` Retrofit service definitions
 - `data/` repository implementation + retry strategy
 - `domain/` public models + internal contracts
-- `ui/` reusable `BannerView`
+- `ui/` internal `ViewPager2` banner adapter
 - `analytics/` internal tracker
 - `state/` internal runtime SDK state
 - `MiniAppSDK.kt` public entrypoint

@@ -1,4 +1,4 @@
-package com.digtitral.miniappsdk.data
+package com.digitral.miniappsdk.data
 
 import java.io.IOException
 import kotlinx.coroutines.delay
