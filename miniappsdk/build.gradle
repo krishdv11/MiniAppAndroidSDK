@@ -1,17 +1,15 @@
 plugins {
     id 'com.android.library'
     id 'org.jetbrains.kotlin.android'
-    id 'org.jetbrains.kotlin.kapt'
-    id 'com.google.dagger.hilt.android'
     id 'maven-publish'
     id 'signing'
 }
 
-group = findProperty("POM_GROUP_ID") ?: "com.digitral.miniappsdk"
-version = findProperty("POM_VERSION") ?: "1.0.0"
+group = "com.digtitral"
+version = "1.0.0"
 
 android {
-    namespace 'com.miniappsdk'
+    namespace 'com.digtitral.miniappsdk'
     compileSdk 34
 
     defaultConfig {
@@ -49,16 +47,15 @@ kotlin {
 
 dependencies {
 
+    // OkHttp
+    implementation "com.squareup.okhttp3:okhttp:4.12.0"
+
     // Retrofit
     implementation "com.squareup.retrofit2:retrofit:2.9.0"
     implementation "com.squareup.retrofit2:converter-gson:2.9.0"
 
     // Coroutines
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3"
-
-    // Hilt
-    implementation "com.google.dagger:hilt-android:2.48"
-    kapt "com.google.dagger:hilt-compiler:2.48"
 
     // Glide
     implementation "com.github.bumptech.glide:glide:4.16.0"
@@ -67,36 +64,34 @@ dependencies {
 publishing {
     publications {
         release(MavenPublication) {
-            from components.release
-
-            groupId = findProperty("POM_GROUP_ID") ?: "com.digitral.miniappsdk"
-            artifactId = findProperty("POM_ARTIFACT_ID") ?: "miniappsdk"
-            version = findProperty("POM_VERSION") ?: "1.0.0"
+            groupId = "com.digtitral"
+            artifactId = "miniapp-android-sdk"
+            version = "1.0.0"
 
             pom {
-                name = findProperty("POM_NAME") ?: "MiniApp SDK"
-                description = findProperty("POM_DESCRIPTION") ?: "Android MiniApp SDK"
-                url = findProperty("POM_URL") ?: "https://github.com/digitral/miniappsdk"
+                name = "MiniApp Android SDK"
+                description = "Android SDK for MiniApp service discovery and banner rendering."
+                url = "https://github.com/krishdv11/MiniAppAndroidSDK.git"
 
                 licenses {
                     license {
-                        name = findProperty("POM_LICENSE_NAME") ?: "The Apache License, Version 2.0"
-                        url = findProperty("POM_LICENSE_URL") ?: "https://www.apache.org/licenses/LICENSE-2.0.txt"
+                        name = "MIT License"
+                        url = "https://opensource.org/licenses/MIT"
                     }
                 }
 
                 developers {
                     developer {
-                        id = findProperty("POM_DEVELOPER_ID") ?: "maintainer"
-                        name = findProperty("POM_DEVELOPER_NAME") ?: "SDK Maintainer"
-                        email = findProperty("POM_DEVELOPER_EMAIL") ?: "krishdv11@gmail.com"
+                        id = "krishdv11"
+                        name = "Krishna Murari"
+                        email = "krishdv11@gmail.com"
                     }
                 }
 
                 scm {
-                    connection = findProperty("POM_SCM_CONNECTION") ?: "scm:git:git://github.com/digitral/miniappsdk.git"
-                    developerConnection = findProperty("POM_SCM_DEV_CONNECTION") ?: "scm:git:ssh://github.com:digitral/miniappsdk.git"
-                    url = findProperty("POM_SCM_URL") ?: "https://github.com/digitral/miniappsdk"
+                    connection = "scm:git:git://github.com/krishdv11/MiniAppAndroidSDK.git"
+                    developerConnection = "scm:git:ssh://git@github.com/krishdv11/MiniAppAndroidSDK.git"
+                    url = "https://github.com/krishdv11/MiniAppAndroidSDK.git"
                 }
             }
         }
@@ -118,6 +113,16 @@ publishing {
                     username = findProperty("PUBLISH_REPOSITORY_USERNAME") ?: System.getenv("PUBLISH_REPOSITORY_USERNAME")
                     password = findProperty("PUBLISH_REPOSITORY_PASSWORD") ?: System.getenv("PUBLISH_REPOSITORY_PASSWORD")
                 }
+            }
+        }
+    }
+}
+
+afterEvaluate {
+    publishing {
+        publications {
+            release {
+                from components.release
             }
         }
     }

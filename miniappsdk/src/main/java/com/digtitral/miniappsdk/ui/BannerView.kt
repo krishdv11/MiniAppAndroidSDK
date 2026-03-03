@@ -1,4 +1,4 @@
-package com.miniappsdk.ui
+package com.digtitral.miniappsdk.ui
 
 import android.content.Context
 import android.util.AttributeSet
@@ -7,9 +7,9 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import com.bumptech.glide.Glide
-import com.miniappsdk.R
-import com.miniappsdk.analytics.SDKAnalytics
-import com.miniappsdk.domain.model.MiniAppService
+import com.digtitral.miniappsdk.R
+import com.digtitral.miniappsdk.MiniAppSDK
+import com.digtitral.miniappsdk.domain.model.MiniAppService
 
 public class BannerView @JvmOverloads public constructor(
     context: Context,
@@ -37,6 +37,6 @@ public class BannerView @JvmOverloads public constructor(
             .load(service.imageUrl)
             .into(image)
 
-        SDKAnalytics.trackEvent("Banner_Shown")
+        MiniAppSDK.trackInternalEvent("Banner_Shown")
     }
 }

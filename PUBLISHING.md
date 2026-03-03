@@ -1,17 +1,12 @@
 # Publishing MiniApp SDK
 
-This project is configured to publish `miniappsdk` as a Maven artifact.
+This project is configured to publish `miniapp-android-sdk` as a Maven artifact.
 
-## 1) Update metadata
+## Coordinates
 
-Edit `gradle.properties`:
-
-- `POM_GROUP_ID`
-- `POM_ARTIFACT_ID`
-- `POM_VERSION`
-- `POM_URL`
-- `POM_SCM_*`
-- `POM_DEVELOPER_*`
+- `groupId`: `com.digtitral`
+- `artifactId`: `miniapp-android-sdk`
+- `version`: `1.0.0`
 
 ## 2) Build and publish locally (quick verification)
 

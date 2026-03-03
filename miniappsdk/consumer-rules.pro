@@ -1,1 +1,5 @@
-# Consumer ProGuard rules for apps embedding MiniAppSDK.
+-keep class com.digtitral.miniappsdk.** { *; }
+-dontwarn retrofit2.**
+-dontwarn okhttp3.**
+-keepattributes Signature
+-keepattributes *Annotation*
