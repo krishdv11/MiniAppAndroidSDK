@@ -1,6 +1,7 @@
 package com.digitral.miniappsdk
 
 import android.content.Context
+import android.view.ViewGroup
 import androidx.viewpager2.widget.ViewPager2
 import com.digitral.miniappsdk.analytics.SDKAnalyticsTracker
 import com.digitral.miniappsdk.api.MiniAppApi
@@ -9,6 +10,8 @@ import com.digitral.miniappsdk.domain.model.MiniAppService
 import com.digitral.miniappsdk.domain.repository.MiniAppRepository
 import com.digitral.miniappsdk.state.SDKState
 import com.digitral.miniappsdk.ui.BannerPagerAdapter
+import com.google.gson.GsonBuilder
+import com.google.gson.JsonDeserializer
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -28,6 +31,25 @@ public object MiniAppSDK {
     @Volatile
     private var analyticsTracker: SDKAnalyticsTracker? = null
 
+    private val miniAppServiceDeserializer = JsonDeserializer<MiniAppService> { json, _, _ ->
+        val obj = json.asJsonObject
+        val idElement = obj.get("id")
+        val id = when {
+            idElement == null || idElement.isJsonNull -> ""
+            idElement.isJsonPrimitive && idElement.asJsonPrimitive.isString -> idElement.asString
+            idElement.isJsonPrimitive && idElement.asJsonPrimitive.isNumber -> idElement.asNumber.toString()
+            idElement.isJsonPrimitive && idElement.asJsonPrimitive.isBoolean -> idElement.asBoolean.toString()
+            else -> idElement.toString()
+        }
+
+        MiniAppService(
+            id = id,
+            title = obj.get("title")?.takeIf { !it.isJsonNull }?.asString.orEmpty(),
+            description = obj.get("description")?.takeIf { !it.isJsonNull }?.asString.orEmpty(),
+            imageUrl = obj.get("imageUrl")?.takeIf { !it.isJsonNull }?.asString.orEmpty()
+        )
+    }
+
     @Synchronized
     @JvmStatic
     public fun initWithAppID(
@@ -41,10 +63,13 @@ public object MiniAppSDK {
 
         val appContext = context.applicationContext
         val okHttpClient: OkHttpClient = OkHttpClient.Builder().build()
+        val gson = GsonBuilder()
+            .registerTypeAdapter(MiniAppService::class.java, miniAppServiceDeserializer)
+            .create()
         val retrofit: Retrofit = Retrofit.Builder()
             .baseUrl(baseUrl)
             .client(okHttpClient)
-            .addConverterFactory(GsonConverterFactory.create())
+            .addConverterFactory(GsonConverterFactory.create(gson))
             .build()
         val api: MiniAppApi = retrofit.create(MiniAppApi::class.java)
 
@@ -85,6 +110,11 @@ public object MiniAppSDK {
         fetchMiniAppServices { result ->
             result.onSuccess { list ->
                 val pager = ViewPager2(context)
+                pager.layoutParams = ViewGroup.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+                )
+                pager.minimumHeight = context.resources.getDimensionPixelSize(R.dimen.miniapp_banner_min_height)
                 pager.adapter = BannerPagerAdapter(list)
                 callback(Result.success(Pair(list, pager)))
             }.onFailure {
