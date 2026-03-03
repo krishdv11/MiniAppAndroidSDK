@@ -3,6 +3,7 @@ package com.digitral.miniappsdk.ui
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
@@ -16,7 +17,9 @@ internal class BannerPagerAdapter(
 ) : RecyclerView.Adapter<BannerPagerAdapter.BannerViewHolder>() {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): BannerViewHolder {
-        val view = LayoutInflater.from(parent.context).inflate(R.layout.view_banner, parent, false)
+        val view = LayoutInflater.from(parent.context)
+            .inflate(R.layout.item_banner_page, parent, false)
+        view.layoutParams = RecyclerView.LayoutParams(MATCH_PARENT, MATCH_PARENT)
         return BannerViewHolder(view)
     }
 
