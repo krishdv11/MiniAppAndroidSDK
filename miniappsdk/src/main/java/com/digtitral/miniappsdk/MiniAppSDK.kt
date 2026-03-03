@@ -1,6 +1,7 @@
 package com.digtitral.miniappsdk
 
 import android.content.Context
+import android.widget.LinearLayout
 import com.digtitral.miniappsdk.analytics.SDKAnalyticsTracker
 import com.digtitral.miniappsdk.api.MiniAppApi
 import com.digtitral.miniappsdk.data.MiniAppRepositoryImpl
@@ -8,6 +9,7 @@ import com.digtitral.miniappsdk.domain.model.MiniAppService
 import com.digtitral.miniappsdk.domain.repository.MiniAppRepository
 import com.digtitral.miniappsdk.state.SDKState
 import com.digtitral.miniappsdk.ui.BannerView
+import androidx.viewpager2.widget.ViewPager2
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -87,9 +89,19 @@ public object MiniAppSDK {
         fetchMiniAppServices(page = page) { result ->
             result.onSuccess { list ->
                 val banner = BannerView(context)
-                if (list.isNotEmpty()) {
-                    banner.bind(list.first())
+                if (list.isEmpty()) {
+                    callback(Result.success(Pair(list, banner)))
+                    return@onSuccess
                 }
+
+                val viewPager = ViewPager2(context).apply {
+                    layoutParams = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                    )
+                    adapter = com.digtitral.miniappsdk.ui.BannerPagerAdapter(list)
+                }
+                banner.bindPager(items = list, viewPager = viewPager)
                 callback(Result.success(Pair(list, banner)))
             }.onFailure {
                 callback(Result.failure(it))
