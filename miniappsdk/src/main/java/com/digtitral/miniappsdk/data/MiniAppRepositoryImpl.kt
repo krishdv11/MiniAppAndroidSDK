@@ -11,7 +11,9 @@ internal class MiniAppRepositoryImpl(
 
     override suspend fun fetchServices(page: Int): List<MiniAppService> {
         return retryIO {
-            api.getMiniAppServices(appId = appId, page = page)
+            api.getMiniAppServices()
+            // Pagination-compatible version kept for backend APIs that support query params:
+            // api.getMiniAppServices(appId = appId, page = page)
         }
     }
 }
