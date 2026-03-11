@@ -111,3 +111,14 @@ Current version: `1.0.0`
 ## License
 
 MIT License. See `LICENSE`.
+
+## Sample App Module
+
+This repository includes a runnable integration sample at `sampleapp/`.
+
+Quick validation:
+
+1) Open `sampleapp` and run on device/emulator  
+2) Tap **Initialize SDK**  
+3) Wait for background sync and tap **Load Cached Mini Apps**  
+4) Tap a mini app item to load it in WebView
