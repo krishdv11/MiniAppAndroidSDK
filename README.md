@@ -37,8 +37,9 @@ dependencies {
 ```kotlin
 MiniAppSDK.initWithAppID(
     context = applicationContext,
-    appId = "your-app-id",
-    baseUrl = "https://api.yourdomain.com/"
+    appId = "partner-app-id",
+    secretKey = "partner-secret-key",
+    domainUrl = "https://csdpdev-api.d21.co.in/"
 )
 ```
 
@@ -50,27 +51,27 @@ Ensure the host app manifest includes internet access:
 <uses-permission android:name="android.permission.INTERNET" />
 ```
 
-## Fetch Services
+## Get Cached Mini Apps
 
 ```kotlin
-MiniAppSDK.fetchMiniAppServices { result ->
+MiniAppSDK.getCachedMiniApps { result ->
     result.onSuccess { services ->
-        // Use service list
+        // Render mini app list in host UI
     }.onFailure { throwable ->
         // Handle error
     }
 }
 ```
 
-## Fetch Services + Banner UI
+## Load Mini App in WebView
 
 ```kotlin
-MiniAppSDK.fetchMiniAppServicesWithUI(context = this) { result ->
-    result.onSuccess { (services, bannerPager) ->
-        container.addView(bannerPager)
-        // bannerPager is a ViewPager2 showing service banners
-    }.onFailure { throwable ->
-        // Handle error
+MiniAppSDK.loadMiniAppInWebView(
+    miniAppId = "com.gamma.finance",
+    webView = webView
+) { result ->
+    result.onFailure { error ->
+        // Show fallback UI
     }
 }
 ```
@@ -86,6 +87,16 @@ The SDK follows a clean, layered structure:
 - `analytics/` internal tracker
 - `state/` internal runtime SDK state
 - `MiniAppSDK.kt` public entrypoint
+
+### Internal runtime flow
+
+On `initWithAppID(...)`, SDK performs:
+
+1) partner auth  
+2) runtime mini app list fetch  
+3) list cache write  
+4) zip download + unzip for each mini app  
+5) zip download metrics recording  
 
 ## Versioning Strategy
 

@@ -19,11 +19,28 @@ internal object SDKState {
     var initialized: Boolean = false
         private set
 
-    fun set(context: Context, appId: String, baseUrl: String, initialized: Boolean): Unit {
+    @Volatile
+    var partnerId: String? = null
+        private set
+
+    @Volatile
+    var signature: String? = null
+        private set
+
+    fun set(
+        context: Context,
+        appId: String,
+        baseUrl: String,
+        initialized: Boolean,
+        partnerId: String,
+        signature: String
+    ): Unit {
         this.context = context
         this.appId = appId
         this.baseUrl = baseUrl
         this.initialized = initialized
+        this.partnerId = partnerId
+        this.signature = signature
     }
 
     fun clear(): Unit {
@@ -31,5 +48,7 @@ internal object SDKState {
         appId = null
         baseUrl = null
         initialized = false
+        partnerId = null
+        signature = null
     }
 }

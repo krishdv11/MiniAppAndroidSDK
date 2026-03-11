@@ -1,17 +1,15 @@
 package com.digitral.miniappsdk
 
 import android.content.Context
-import android.view.ViewGroup
-import androidx.viewpager2.widget.ViewPager2
+import android.webkit.WebSettings
+import android.webkit.WebView
 import com.digitral.miniappsdk.analytics.SDKAnalyticsTracker
 import com.digitral.miniappsdk.api.MiniAppApi
+import com.digitral.miniappsdk.data.MiniAppCacheManager
 import com.digitral.miniappsdk.data.MiniAppRepositoryImpl
 import com.digitral.miniappsdk.domain.model.MiniAppService
 import com.digitral.miniappsdk.domain.repository.MiniAppRepository
 import com.digitral.miniappsdk.state.SDKState
-import com.digitral.miniappsdk.ui.BannerPagerAdapter
-import com.google.gson.GsonBuilder
-import com.google.gson.JsonDeserializer
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -31,56 +29,60 @@ public object MiniAppSDK {
     @Volatile
     private var analyticsTracker: SDKAnalyticsTracker? = null
 
-    private val miniAppServiceDeserializer = JsonDeserializer<MiniAppService> { json, _, _ ->
-        val obj = json.asJsonObject
-        val idElement = obj.get("id")
-        val id = when {
-            idElement == null || idElement.isJsonNull -> ""
-            idElement.isJsonPrimitive && idElement.asJsonPrimitive.isString -> idElement.asString
-            idElement.isJsonPrimitive && idElement.asJsonPrimitive.isNumber -> idElement.asNumber.toString()
-            idElement.isJsonPrimitive && idElement.asJsonPrimitive.isBoolean -> idElement.asBoolean.toString()
-            else -> idElement.toString()
-        }
-
-        MiniAppService(
-            id = id,
-            title = obj.get("title")?.takeIf { !it.isJsonNull }?.asString.orEmpty(),
-            description = obj.get("description")?.takeIf { !it.isJsonNull }?.asString.orEmpty(),
-            imageUrl = obj.get("imageUrl")?.takeIf { !it.isJsonNull }?.asString.orEmpty()
-        )
-    }
-
     @Synchronized
     @JvmStatic
     public fun initWithAppID(
         context: Context,
         appId: String,
-        baseUrl: String
+        secretKey: String,
+        domainUrl: String
     ): Unit {
         require(appId.isNotBlank()) { "appId cannot be blank" }
-        require(baseUrl.isNotBlank()) { "baseUrl cannot be blank" }
-        require(baseUrl.endsWith("/")) { "baseUrl must end with '/'" }
+        require(secretKey.isNotBlank()) { "secretKey cannot be blank" }
+        require(domainUrl.isNotBlank()) { "domainUrl cannot be blank" }
+        require(domainUrl.endsWith("/")) { "domainUrl must end with '/'" }
 
         val appContext = context.applicationContext
         val okHttpClient: OkHttpClient = OkHttpClient.Builder().build()
-        val gson = GsonBuilder()
-            .registerTypeAdapter(MiniAppService::class.java, miniAppServiceDeserializer)
-            .create()
         val retrofit: Retrofit = Retrofit.Builder()
-            .baseUrl(baseUrl)
+            .baseUrl(domainUrl)
             .client(okHttpClient)
-            .addConverterFactory(GsonConverterFactory.create(gson))
+            .addConverterFactory(GsonConverterFactory.create())
             .build()
         val api: MiniAppApi = retrofit.create(MiniAppApi::class.java)
+        val cacheManager = MiniAppCacheManager(appContext)
 
-        SDKState.set(context = appContext, appId = appId, baseUrl = baseUrl, initialized = true)
+        SDKState.set(
+            context = appContext,
+            appId = appId,
+            baseUrl = domainUrl,
+            initialized = true,
+            partnerId = appId,
+            signature = secretKey
+        )
         analyticsTracker = SDKAnalyticsTracker(appContext)
-        repository = MiniAppRepositoryImpl(api = api)
+        repository = MiniAppRepositoryImpl(
+            api = api,
+            appId = appId,
+            secretKey = secretKey,
+            domainUrl = domainUrl,
+            cacheManager = cacheManager,
+            httpClient = okHttpClient
+        )
         trackInternalEvent("SDK_Initialized")
+
+        // Preload runtime list and zip cache right after initialization.
+        sdkScope.launch {
+            try {
+                repository?.syncAndCacheMiniApps()
+            } catch (_: Exception) {
+                // Initialization should not crash host app.
+            }
+        }
     }
 
     @JvmStatic
-    public fun fetchMiniAppServices(
+    public fun getCachedMiniApps(
         callback: (Result<List<MiniAppService>>) -> Unit
     ): Unit {
         checkInit()
@@ -90,7 +92,7 @@ public object MiniAppSDK {
 
         sdkScope.launch {
             try {
-                val data = currentRepository.fetchServices()
+                val data = currentRepository.getCachedServices()
                 withContext(Dispatchers.Main) {
                     callback(Result.success(data))
                 }
@@ -103,29 +105,46 @@ public object MiniAppSDK {
     }
 
     @JvmStatic
-    public fun fetchMiniAppServicesWithUI(
-        context: Context,
-        callback: (Result<Pair<List<MiniAppService>, ViewPager2>>) -> Unit
+    public fun loadMiniAppInWebView(
+        miniAppId: String,
+        webView: WebView,
+        callback: (Result<Unit>) -> Unit
     ): Unit {
-        fetchMiniAppServices { result ->
-            result.onSuccess { list ->
-                val pager = ViewPager2(context)
-                pager.layoutParams = ViewGroup.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT
-                )
-                pager.minimumHeight = context.resources.getDimensionPixelSize(R.dimen.miniapp_banner_min_height)
-                pager.adapter = BannerPagerAdapter(list)
-                callback(Result.success(Pair(list, pager)))
-            }.onFailure {
-                callback(Result.failure(it))
+        checkInit()
+        val currentRepository = repository ?: return callback(
+            Result.failure(IllegalStateException("Repository is not initialized"))
+        )
+        require(miniAppId.isNotBlank()) { "miniAppId cannot be blank" }
+
+        sdkScope.launch {
+            try {
+                val sessionToken = currentRepository.getSessionToken(miniAppId)
+                var entryFile = currentRepository.getCachedEntryHtml(miniAppId)
+                if (entryFile == null) {
+                    currentRepository.syncAndCacheMiniApps()
+                    entryFile = currentRepository.getCachedEntryHtml(miniAppId)
+                }
+                val verifiedEntryFile = entryFile
+                    ?: throw IllegalStateException("Mini app zip is not cached for $miniAppId")
+
+                withContext(Dispatchers.Main) {
+                    webView.settings.javaScriptEnabled = true
+                    webView.settings.cacheMode = WebSettings.LOAD_DEFAULT
+                    val loadUrl = "${verifiedEntryFile.toURI()}?sessionToken=$sessionToken"
+                    webView.loadUrl(loadUrl)
+                    callback(Result.success(Unit))
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    callback(Result.failure(e))
+                }
             }
         }
     }
 
     private fun checkInit(): Unit {
         if (!SDKState.initialized || repository == null) {
-            throw IllegalStateException("Call initWithAppID(context, appId, baseUrl) first")
+            throw IllegalStateException("Call initWithAppID(context, appId, secretKey, domainUrl) first")
         }
     }
 
