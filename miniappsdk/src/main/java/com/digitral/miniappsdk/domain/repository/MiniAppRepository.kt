@@ -7,6 +7,7 @@ import java.io.File
 internal interface MiniAppRepository {
     suspend fun syncAndCacheMiniApps(): List<MiniAppService>
     fun getCachedServices(): List<MiniAppService>
+    suspend fun ensureMiniAppCached(miniAppId: String): Boolean
     suspend fun getSessionToken(miniAppId: String): String
     fun getCachedEntryHtml(miniAppId: String): File?
 }

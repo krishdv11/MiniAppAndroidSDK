@@ -3,5 +3,7 @@
     <string name="app_name">MiniAppSampleApp</string>
     <string name="init_sdk">Initialize SDK</string>
     <string name="load_cached_miniapps">Load Cached Mini Apps</string>
+    <string name="close_miniapp">Close</string>
+    <string name="miniapp_load_failed">Mini app load failed</string>
     <string name="status_idle">Status: Idle</string>
 </resources>

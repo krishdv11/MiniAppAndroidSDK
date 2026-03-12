@@ -13,6 +13,7 @@ import com.digitral.miniappsdk.domain.repository.MiniAppRepository
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.File
+import java.io.FileOutputStream
 
 internal class MiniAppRepositoryImpl(
     private val api: MiniAppApi,
@@ -22,6 +23,9 @@ internal class MiniAppRepositoryImpl(
     private val cacheManager: MiniAppCacheManager,
     private val httpClient: OkHttpClient
 ) : MiniAppRepository {
+    private companion object {
+        private const val INITIAL_CURRENT_VERSION = "0.0.0"
+    }
 
     @Volatile
     private var cachedBearerToken: String? = null
@@ -30,11 +34,8 @@ internal class MiniAppRepositoryImpl(
     private var tokenExpiryAtMillis: Long = 0L
 
     override suspend fun syncAndCacheMiniApps(): List<MiniAppService> {
-        val bearer = getBearerToken()
-        val runtimeItems = retryIO {
-            val runtimeResponse = api.getRuntimeMiniApps(authorization = bearer)
-            runtimeResponse.data.orEmpty().sortedBy { it.displayOrder ?: Int.MAX_VALUE }
-        }
+        val bearer = getBearerTokenOrNull()
+        val runtimeItems = fetchRuntimeMiniAppsWithAuthFallback(bearer)
         val services = runtimeItems.map { it.toMiniAppService() }
         cacheManager.saveServices(services)
         runtimeItems.forEach { dto ->
@@ -45,43 +46,66 @@ internal class MiniAppRepositoryImpl(
 
     override fun getCachedServices(): List<MiniAppService> = cacheManager.getServices()
 
-    private suspend fun getBearerToken(): String {
+    override suspend fun ensureMiniAppCached(miniAppId: String): Boolean {
+        if (miniAppId.isBlank()) return false
+        if (cacheManager.findIndexHtml(miniAppId) != null) return true
+
+        val bearer = getBearerTokenOrNull()
+        val runtimeItem = fetchRuntimeMiniAppsWithAuthFallback(bearer)
+            .firstOrNull { it.appId == miniAppId }
+            ?: RuntimeMiniAppDto(
+                appId = miniAppId,
+                name = miniAppId,
+                latestVersion = "1.0.0"
+            )
+
+        cacheMiniAppZipForRuntimeItem(runtimeItem, bearer)
+        return cacheManager.findIndexHtml(miniAppId) != null
+    }
+
+    private suspend fun getBearerTokenOrNull(): String? {
         val now = System.currentTimeMillis()
         if (!cachedBearerToken.isNullOrBlank() && now < tokenExpiryAtMillis) {
-            return cachedBearerToken.orEmpty()
+            return cachedBearerToken
         }
 
-        val authResponse = retryIO {
-            api.partnerAuth(
-                request = PartnerAuthRequest(
-                    partnerId = appId,
-                    signature = secretKey
+        return try {
+            val authResponse = retryIO {
+                api.partnerAuth(
+                    request = PartnerAuthRequest(
+                        partnerId = appId,
+                        signature = secretKey
+                    )
                 )
-            )
+            }
+            val token = authResponse.data?.token.orEmpty()
+            if (token.isBlank()) {
+                cachedBearerToken = null
+                tokenExpiryAtMillis = 0L
+                null
+            } else {
+                val expiresInSeconds = authResponse.data?.expiresIn ?: 300L
+                tokenExpiryAtMillis = now + (expiresInSeconds.coerceAtLeast(60L) - 10L) * 1_000L
+                cachedBearerToken = "Bearer $token"
+                cachedBearerToken
+            }
+        } catch (_: Exception) {
+            cachedBearerToken = null
+            tokenExpiryAtMillis = 0L
+            null
         }
-
-        val token = authResponse.data?.token.orEmpty()
-        require(token.isNotBlank()) { "Partner auth failed: empty token" }
-
-        val expiresInSeconds = authResponse.data?.expiresIn ?: 300L
-        // Renew a little earlier than exact expiration.
-        tokenExpiryAtMillis = now + (expiresInSeconds.coerceAtLeast(60L) - 10L) * 1_000L
-        cachedBearerToken = "Bearer $token"
-        return cachedBearerToken.orEmpty()
     }
 
     override suspend fun getSessionToken(miniAppId: String): String {
-        val bearer = getBearerToken()
-        val response = retryIO {
-            api.getSessionToken(
-                authorization = bearer,
-                appId = miniAppId,
-                request = SessionTokenRequest(
-                    userId = "sdk-user-${Build.MODEL}",
-                    scope = listOf("profile.read")
-                )
+        val bearer = getBearerTokenOrNull()
+        val response = fetchSessionTokenWithAuthFallback(
+            miniAppId = miniAppId,
+            bearer = bearer,
+            request = SessionTokenRequest(
+                userId = "sdk-user-${Build.MODEL}",
+                scope = listOf("profile.read")
             )
-        }
+        )
         val token = response.data?.token.orEmpty()
         require(token.isNotBlank()) { "Session token is empty" }
         return token
@@ -89,25 +113,22 @@ internal class MiniAppRepositoryImpl(
 
     override fun getCachedEntryHtml(miniAppId: String): File? = cacheManager.findIndexHtml(miniAppId)
 
-    private suspend fun cacheMiniAppZipForRuntimeItem(runtime: RuntimeMiniAppDto, bearer: String): Unit {
+    private suspend fun cacheMiniAppZipForRuntimeItem(runtime: RuntimeMiniAppDto, bearer: String?): Unit {
         try {
             val service = runtime.toMiniAppService()
-            val version = runtime.latestVersion?.takeIf { it.isNotBlank() } ?: "1.0.0"
-            val tokenResponse = retryIO {
-                api.getDownloadToken(
-                    authorization = bearer,
-                    appId = service.id,
-                    request = DownloadTokenRequest(
-                        currentVersion = version,
-                        deviceInfo = DeviceInfo(
-                            os = "android",
-                            superAppVersion = "sdk-1.0.0"
-                        )
-                    )
-                )
+            if (cacheManager.findIndexHtml(service.id) != null) {
+                return
             }
+            val version = runtime.latestVersion?.takeIf { it.isNotBlank() } ?: "1.0.0"
+            val currentVersion = resolveCurrentVersionForDownload(service.id)
+            val tokenResponse = fetchDownloadTokenWithAuthFallback(
+                miniAppId = service.id,
+                currentVersion = currentVersion,
+                bearer = bearer
+            )
             val downloadData = tokenResponse.data
             val downloadUrl = downloadData?.downloadUrl.orEmpty()
+            val checksum = downloadData?.checksum.orEmpty()
             if (downloadUrl.isBlank()) {
                 recordZipMetric(service, version, false, "Missing downloadUrl")
                 return
@@ -115,6 +136,7 @@ internal class MiniAppRepositoryImpl(
             val artifactId = downloadData?.artifactId?.ifBlank { null } ?: "artifact"
             val zip = cacheManager.zipFile(service.id, artifactId)
             downloadZip(downloadUrl, zip)
+            appendChecksumPartToZip(zip, checksum)
             cacheManager.unzip(zip, cacheManager.extractionDir(service.id, artifactId))
             recordZipMetric(service, version, true, "")
         } catch (e: Exception) {
@@ -128,6 +150,115 @@ internal class MiniAppRepositoryImpl(
             val version = runtime.latestVersion?.takeIf { it.isNotBlank() } ?: "1.0.0"
             recordZipMetric(fallbackService, version, false, e.message.orEmpty())
         }
+    }
+
+    private suspend fun fetchDownloadTokenWithAuthFallback(
+        miniAppId: String,
+        currentVersion: String,
+        bearer: String?
+    ) = try {
+        retryIO {
+            api.getDownloadToken(
+                authorization = bearer,
+                appId = miniAppId,
+                request = DownloadTokenRequest(
+                    currentVersion = currentVersion,
+                    deviceInfo = DeviceInfo(
+                        os = "android",
+                        superAppVersion = "sdk-1.0.0"
+                    )
+                )
+            )
+        }
+    } catch (firstError: Exception) {
+        if (bearer.isNullOrBlank()) throw firstError
+        retryIO {
+            api.getDownloadToken(
+                authorization = null,
+                appId = miniAppId,
+                request = DownloadTokenRequest(
+                    currentVersion = currentVersion,
+                    deviceInfo = DeviceInfo(
+                        os = "android",
+                        superAppVersion = "sdk-1.0.0"
+                    )
+                )
+            )
+        }
+    }
+
+    private fun resolveCurrentVersionForDownload(miniAppId: String): String {
+        return if (cacheManager.findIndexHtml(miniAppId) != null) {
+            "1.0.0"
+        } else {
+            INITIAL_CURRENT_VERSION
+        }
+    }
+
+    private suspend fun fetchRuntimeMiniAppsWithAuthFallback(
+        bearer: String?
+    ): List<RuntimeMiniAppDto> = try {
+        retryIO {
+            api.getRuntimeMiniApps(authorization = bearer)
+                .data
+                .orEmpty()
+                .sortedBy { it.displayOrder ?: Int.MAX_VALUE }
+        }
+    } catch (firstError: Exception) {
+        if (bearer.isNullOrBlank()) throw firstError
+        retryIO {
+            api.getRuntimeMiniApps(authorization = null)
+                .data
+                .orEmpty()
+                .sortedBy { it.displayOrder ?: Int.MAX_VALUE }
+        }
+    }
+
+    private suspend fun fetchSessionTokenWithAuthFallback(
+        miniAppId: String,
+        bearer: String?,
+        request: SessionTokenRequest
+    ) = try {
+        retryIO {
+            api.getSessionToken(
+                authorization = bearer,
+                appId = miniAppId,
+                request = request
+            )
+        }
+    } catch (firstError: Exception) {
+        if (bearer.isNullOrBlank()) throw firstError
+        retryIO {
+            api.getSessionToken(
+                authorization = null,
+                appId = miniAppId,
+                request = request
+            )
+        }
+    }
+
+    private fun appendChecksumPartToZip(zipFile: File, checksumHex: String): Unit {
+        if (checksumHex.isBlank()) return
+        require(zipFile.exists() && zipFile.length() > 0L) { "Downloaded zip is empty" }
+        val checksumBytes = checksumHex.decodeHexToByteArray()
+        require(checksumBytes.isNotEmpty()) { "Checksum bytes are empty" }
+        FileOutputStream(zipFile, true).use { output ->
+            output.write(checksumBytes)
+        }
+    }
+
+    private fun String.decodeHexToByteArray(): ByteArray {
+        require(length % 2 == 0) { "Invalid checksum hex length" }
+        val output = ByteArray(length / 2)
+        var i = 0
+        while (i < length) {
+            val high = this[i].digitToIntOrNull(16)
+            val low = this[i + 1].digitToIntOrNull(16)
+            require(high != null && low != null) { "Invalid checksum hex characters" }
+            output[i / 2] = ((high shl 4) + low).toByte()
+            i += 2
+        }
+        return output
     }
 
     private suspend fun downloadZip(url: String, destination: File): Unit {
@@ -151,7 +282,7 @@ internal class MiniAppRepositoryImpl(
         message: String
     ): Unit {
         try {
-            val bearer = cachedBearerToken ?: return
+            val bearer = cachedBearerToken
             val event = MetricsEventRequest(
                 appId = service.id,
                 version = version,

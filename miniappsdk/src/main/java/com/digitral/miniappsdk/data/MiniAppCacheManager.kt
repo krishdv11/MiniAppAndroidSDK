@@ -15,7 +15,11 @@ internal class MiniAppCacheManager(
     private val servicesFile = File(rootDir, "services.json")
 
     fun saveServices(services: List<MiniAppService>): Unit {
-        servicesFile.writeText(gson.toJson(services))
+        val tempFile = File(rootDir, "${servicesFile.name}.tmp")
+        tempFile.writeText(gson.toJson(services))
+        if (!tempFile.renameTo(servicesFile)) {
+            servicesFile.writeText(gson.toJson(services))
+        }
     }
 
     fun getServices(): List<MiniAppService> {
@@ -31,15 +35,23 @@ internal class MiniAppCacheManager(
     fun zipFile(appId: String, artifactId: String): File = File(appDir(appId), "$artifactId.zip")
 
     fun extractionDir(appId: String, artifactId: String): File =
-        File(appDir(appId), "unzipped-$artifactId").apply { mkdirs() }
+        File(appDir(appId), "unzipped-$artifactId").apply {
+            if (exists()) deleteRecursively()
+            mkdirs()
+        }
 
     fun unzip(zip: File, outputDir: File): Unit {
         if (!outputDir.exists()) outputDir.mkdirs()
+        val outputCanonicalPath = outputDir.canonicalPath + File.separator
         ZipFile(zip).use { zipFile ->
             val entries = zipFile.entries()
             while (entries.hasMoreElements()) {
                 val entry = entries.nextElement()
                 val out = File(outputDir, entry.name)
+                val outCanonicalPath = out.canonicalPath
+                require(outCanonicalPath.startsWith(outputCanonicalPath)) {
+                    "Invalid zip entry path: ${entry.name}"
+                }
                 if (entry.isDirectory) {
                     out.mkdirs()
                 } else {
@@ -59,6 +71,13 @@ internal class MiniAppCacheManager(
         val candidate = appDir.walkTopDown().firstOrNull {
             it.isFile && it.name.equals("index.html", ignoreCase = true)
         }
-        return candidate
+        if (candidate != null) return candidate
+        return appDir.walkTopDown().firstOrNull {
+            it.isFile && (
+                it.name.equals("index.htm", ignoreCase = true) ||
+                    it.extension.equals("html", ignoreCase = true) ||
+                    it.extension.equals("htm", ignoreCase = true)
+                )
+        }
     }
 }

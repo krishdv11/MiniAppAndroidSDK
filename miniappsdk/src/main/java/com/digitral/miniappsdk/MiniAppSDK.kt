@@ -1,6 +1,7 @@
 package com.digitral.miniappsdk
 
 import android.content.Context
+import android.os.Build
 import android.webkit.WebSettings
 import android.webkit.WebView
 import com.digitral.miniappsdk.analytics.SDKAnalyticsTracker
@@ -118,8 +119,11 @@ public object MiniAppSDK {
 
         sdkScope.launch {
             try {
-                val sessionToken = currentRepository.getSessionToken(miniAppId)
                 var entryFile = currentRepository.getCachedEntryHtml(miniAppId)
+                if (entryFile == null) {
+                    currentRepository.ensureMiniAppCached(miniAppId)
+                    entryFile = currentRepository.getCachedEntryHtml(miniAppId)
+                }
                 if (entryFile == null) {
                     currentRepository.syncAndCacheMiniApps()
                     entryFile = currentRepository.getCachedEntryHtml(miniAppId)
@@ -128,9 +132,8 @@ public object MiniAppSDK {
                     ?: throw IllegalStateException("Mini app zip is not cached for $miniAppId")
 
                 withContext(Dispatchers.Main) {
-                    webView.settings.javaScriptEnabled = true
-                    webView.settings.cacheMode = WebSettings.LOAD_DEFAULT
-                    val loadUrl = "${verifiedEntryFile.toURI()}?sessionToken=$sessionToken"
+                    configureLocalMiniAppWebView(webView.settings)
+                    val loadUrl = verifiedEntryFile.toURI().toString()
                     webView.loadUrl(loadUrl)
                     callback(Result.success(Unit))
                 }
@@ -150,5 +153,22 @@ public object MiniAppSDK {
 
     internal fun trackInternalEvent(event: String): Unit {
         analyticsTracker?.trackEvent(event)
+    }
+
+    private fun configureLocalMiniAppWebView(settings: WebSettings): Unit {
+        settings.javaScriptEnabled = true
+        settings.domStorageEnabled = true
+        settings.allowFileAccess = true
+        settings.allowContentAccess = true
+        settings.cacheMode = WebSettings.LOAD_DEFAULT
+        enableLegacyFileUrlAccess(settings)
+    }
+
+    @Suppress("DEPRECATION")
+    private fun enableLegacyFileUrlAccess(settings: WebSettings): Unit {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
+            settings.allowFileAccessFromFileURLs = true
+            settings.allowUniversalAccessFromFileURLs = true
+        }
     }
 }
