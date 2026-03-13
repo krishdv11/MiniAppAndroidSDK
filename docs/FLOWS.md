@@ -2,6 +2,49 @@
 
 This document captures end-to-end runtime flows for the Android SDK.
 
+## 0) Single End-to-End Flow (Consolidated)
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant A as Host App
+    participant S as MiniAppSDK
+    participant P as Mini App Platform API
+    participant R as Artifact Storage
+    participant C as Local Cache
+    participant W as WebView
+
+    U->>A: Open app
+    A->>S: initWithAppID(context, appId, secretKey, domainUrl)
+    S->>P: partner/auth (optional/fallback-safe)
+    S->>P: runtime/list
+    P-->>S: mini app list
+    S->>C: save services.json
+
+    loop For each mini app
+        S->>P: runtime/{appId}/download-token
+        P-->>S: downloadUrl + checksum + artifactId
+        S->>R: download zip part-1
+        R-->>S: zip bytes
+        S->>S: append checksum bytes (part-2)
+        S->>C: unzip and store extracted files
+        S->>P: metrics/events (success/failure)
+    end
+
+    U->>A: Tap mini app
+    A->>S: loadMiniAppInWebView(miniAppId, webView)
+    S->>C: check extracted index.html
+    alt cache missing
+        S->>S: ensureMiniAppCached(miniAppId)
+        S->>P: runtime/list (if needed)
+        S->>P: runtime/{appId}/download-token
+        S->>R: download + checksum append
+        S->>C: unzip and store
+    end
+    S->>W: load file://.../index.html
+    W-->>U: Mini app rendered
+```
+
 ## 1) SDK Initialization and Background Sync
 
 ```mermaid
