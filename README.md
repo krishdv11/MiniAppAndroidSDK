@@ -1,17 +1,30 @@
 # MiniApp Android SDK
 
-`MiniApp Android SDK` is a lightweight, self-contained Android library from `digitral` for fetching MiniApp services and rendering a ready-to-use banner UI component.
+`MiniApp Android SDK` is a production-ready Android framework from `digitral` for:
 
-The SDK is host-app friendly:
+- runtime mini app discovery
+- zip download and cache management
+- local mini app rendering in `WebView`
 
-- no DI framework requirement
-- no Hilt requirement
-- coroutine-based async API with safe callbacks
-- retry-on-IO-failure strategy
+The SDK is self-contained (no host DI/Hilt requirement) and designed for reusable integration across multiple Android apps.
 
-## Installation (JitPack)
+## Repository Structure
 
-1) Add JitPack to your root repositories:
+- `miniappsdk/` - Android library framework module (the SDK)
+- `sampleapp/` - standalone Android app that consumes the SDK framework
+- `docs/FLOWS.md` - end-to-end flow charts for all key SDK flows
+
+This separation follows framework-consumer best practices (same idea as Firebase-style SDK consumption).
+
+## End-to-End Integration Guide (Android)
+
+### 1) Add SDK to your Android app
+
+You can consume the framework in two common ways:
+
+#### Option A: JitPack (recommended for external apps)
+
+Add JitPack repository:
 
 ```kotlin
 dependencyResolutionManagement {
@@ -24,7 +37,7 @@ dependencyResolutionManagement {
 }
 ```
 
-2) Add dependency:
+Add dependency:
 
 ```kotlin
 dependencies {
@@ -32,93 +45,123 @@ dependencies {
 }
 ```
 
-## Initialization
+#### Option B: Local framework module (for mono-repo setup)
+
+In your app repo:
 
 ```kotlin
-MiniAppSDK.initWithAppID(
-    context = applicationContext,
-    appId = "partner-app-id",
-    secretKey = "partner-secret-key",
-    domainUrl = "https://csdpdev-api.d21.co.in/"
-)
+// settings.gradle
+include(":miniappsdk")
 ```
 
-## Host App Requirement
+```kotlin
+// app/build.gradle
+dependencies {
+    implementation(project(":miniappsdk"))
+}
+```
 
-Ensure the host app manifest includes internet access:
+### 2) Host app requirements
+
+Add network permission in your host app `AndroidManifest.xml`:
 
 ```xml
 <uses-permission android:name="android.permission.INTERNET" />
 ```
 
-## Get Cached Mini Apps
+### 3) Initialize SDK (once at app launch)
+
+```kotlin
+MiniAppSDK.initWithAppID(
+    context = applicationContext,
+    appId = YOUR_APP_ID,
+    secretKey = YOUR_SECRET_KEY,
+    domainUrl = YOUR_BASE_URL
+)
+```
+
+### 4) Read cached mini app list
 
 ```kotlin
 MiniAppSDK.getCachedMiniApps { result ->
     result.onSuccess { services ->
-        // Render mini app list in host UI
-    }.onFailure { throwable ->
-        // Handle error
+        // Render list in host UI
+    }.onFailure { error ->
+        // Show retry/error state
     }
 }
 ```
 
-## Load Mini App in WebView
+### 5) Load a mini app in WebView
 
 ```kotlin
 MiniAppSDK.loadMiniAppInWebView(
     miniAppId = "com.gamma.finance",
     webView = webView
 ) { result ->
-    result.onFailure { error ->
+    result.onSuccess {
+        // Local extracted mini app loaded
+    }.onFailure { error ->
         // Show fallback UI
     }
 }
 ```
 
-## Architecture Overview
+## Runtime Behavior Summary
 
-The SDK follows a clean, layered structure:
+On `initWithAppID(...)`, SDK runs background sync:
 
-- `api/` Retrofit service definitions
-- `data/` repository implementation + retry strategy
-- `domain/` public models + internal contracts
-- `ui/` internal `ViewPager2` banner adapter
-- `analytics/` internal tracker
-- `state/` internal runtime SDK state
-- `MiniAppSDK.kt` public entrypoint
+1. partner auth (with safe fallback behavior)
+2. runtime mini app list fetch
+3. service list cache write
+4. per-miniapp `download-token` call
+5. zip download + checksum-part append + extraction
+6. zip download metrics event (`success`/`failed`)
 
-### Internal runtime flow
+On mini app click/load:
 
-On `initWithAppID(...)`, SDK performs:
+1. check extracted cache
+2. if missing, prioritize per-miniapp cache creation
+3. fallback to full sync if needed
+4. load local extracted entry HTML into `WebView`
 
-1) partner auth  
-2) runtime mini app list fetch  
-3) list cache write  
-4) zip download + unzip for each mini app  
-5) zip download metrics recording  
+## Framework Design Notes
 
-## Versioning Strategy
+- Public entrypoint is `MiniAppSDK`.
+- Internal architecture uses `api`, `data`, `domain`, `state`, `analytics`, and `ui`.
+- Cache writes and extraction are hardened for stability and safe file handling.
 
-The SDK uses Semantic Versioning:
+## Flow Charts
 
-- `MAJOR`: breaking API changes
-- `MINOR`: backward-compatible features
-- `PATCH`: backward-compatible fixes
+For complete diagrams of all major flows, see:
+
+- `docs/FLOWS.md`
+
+## iOS Reference
+
+For cross-platform structure parity and integration style reference, see:
+
+- https://github.com/krishdv11/MiniAppsSDKiOS/tree/develop
+
+## Versioning
+
+Semantic Versioning:
+
+- `MAJOR` - breaking API changes
+- `MINOR` - backward-compatible features
+- `PATCH` - backward-compatible fixes
 
 Current version: `1.0.0`
+
+## Sample App
+
+`sampleapp/` is the reference consumer app for validation:
+
+1. run sample app
+2. initialize SDK
+3. load cached mini apps
+4. open any mini app in full-screen viewer
 
 ## License
 
 MIT License. See `LICENSE`.
-
-## Sample App Module
-
-This repository includes a runnable integration sample at `sampleapp/`.
-
-Quick validation:
-
-1) Open `sampleapp` and run on device/emulator  
-2) Tap **Initialize SDK**  
-3) Wait for background sync and tap **Load Cached Mini Apps**  
-4) Tap a mini app item to load it in WebView
