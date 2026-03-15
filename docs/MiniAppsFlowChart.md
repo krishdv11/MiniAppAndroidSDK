@@ -1,6 +1,3 @@
-# Mini App SDK Flow
-
-```mermaid
 flowchart TD
 
     %% App launch and SDK init
@@ -56,9 +53,9 @@ flowchart TD
 
     READY --> FH[Host app calls<br/>fetchMiniApps() or<br/>fetchMiniAppsWithDefaultUI()]
 
-    FH --> R1[SDK returns:<br/>-  Array of mini app objects<br/>-  OR default UI (banner list<br/>with label + image view)]
+    FH --> R1[SDK returns:<br/>• Array of mini app objects<br/>• OR default UI (banner list<br/>with label + image view)]
 
-    R1 --> UX[Host app renders either:<br/>-  Custom UI using objects<br/>-  Or SDK default UI]
+    R1 --> UX[Host app renders either:<br/>• Custom UI using objects<br/>• Or SDK default UI]
 
     %% Open mini app
     UX --> TAP[User taps a mini app<br/>in host UI]
