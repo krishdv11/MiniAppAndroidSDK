@@ -210,8 +210,10 @@ SDK works in React Native and Flutter Android targets via native bridge/plugin w
 
 - React Native skeleton wrapper:
   - `integrations/react-native/android/MiniAppSdkModule.kt`
+  - Usage example: `integrations/react-native/USAGE.md`
 - Flutter skeleton wrapper:
   - `integrations/flutter/android/MiniAppSdkFlutterPlugin.kt`
+  - Usage example: `integrations/flutter/USAGE.md`
 
 These wrappers expose:
 

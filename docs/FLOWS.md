@@ -9,7 +9,7 @@ flowchart TD
 
 User[User Opens SuperApp]
 
-User --> Init[Host App calls initMiniAppSDK(appId, secretKey, domainURL)]
+User --> Init[Host App calls initMiniAppSDK with appId, secretKey, domainURL]
 
 Init --> AuthCheck{Is Partner Auth Enabled?}
 
@@ -135,7 +135,7 @@ LaunchMiniApp[Open Mini App in Fullscreen Container\n(WebView / MiniApp Containe
 
 LaunchMiniApp --> SessionTokenCall
 
-SessionTokenCall[Call /miniapp/v1/runtime/{appId}/session-token]
+SessionTokenCall[Call /miniapp/v1/runtime/:appId/session-token]
 
 SessionTokenCall --> SessionTokenValid{Session token valid?}
 
