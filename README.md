@@ -67,9 +67,6 @@ Use one SDK for production behavior in both host debug and host release builds:
 
 - `release/miniappsdk-release.aar`
 
-Use debug SDK when you need verbose runtime logs (API request/response, flow logs, download progress):
-
-- `release/miniappsdk-debug.aar`
 
 Example host `app/build.gradle`:
 
@@ -179,9 +176,10 @@ On mini app open (container path):
 1. check extracted cache
 2. if missing, return `Download In Progress`
 3. check/request runtime permissions based on API `permissions`
-4. launch full-screen mini app container in separate task
-5. load local extracted entry HTML into `WebView`
-6. publish lifecycle metrics (`AppLaunched`, `AppClosed`, bridge events)
+4. call `POST /miniapp/v1/runtime/{appId}/session-token`
+5. launch full-screen mini app container in separate task
+6. load local extracted entry HTML into `WebView`
+7. publish lifecycle metrics (`AppLaunched`, `AppClosed`, bridge events)
 
 Debug AAR runtime logging:
 
@@ -205,6 +203,21 @@ For complete diagrams of all major flows, see:
 For cross-platform structure parity and integration style reference, see:
 
 - https://github.com/krishdv11/MiniAppsSDKiOS/tree/develop
+
+## React Native and Flutter Integration
+
+SDK works in React Native and Flutter Android targets via native bridge/plugin wrappers.
+
+- React Native skeleton wrapper:
+  - `integrations/react-native/android/MiniAppSdkModule.kt`
+- Flutter skeleton wrapper:
+  - `integrations/flutter/android/MiniAppSdkFlutterPlugin.kt`
+
+These wrappers expose:
+
+- `initMiniAppSDK`
+- `fetchMiniApps`
+- `openMiniApp`
 
 ## Versioning
 

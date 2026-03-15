@@ -133,7 +133,14 @@ StopLaunch[Return Permission Error]
 
 LaunchMiniApp[Open Mini App in Fullscreen Container\n(WebView / MiniApp Container)]
 
-LaunchMiniApp --> BridgeConnect
+LaunchMiniApp --> SessionTokenCall
+
+SessionTokenCall[Call /miniapp/v1/runtime/{appId}/session-token]
+
+SessionTokenCall --> SessionTokenValid{Session token valid?}
+
+SessionTokenValid -->|Yes| BridgeConnect
+SessionTokenValid -->|No| StopLaunch
 
 BridgeConnect[Establish Bridge Communication]
 

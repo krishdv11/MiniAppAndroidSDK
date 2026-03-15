@@ -11,5 +11,6 @@ internal interface MiniAppRepository {
     fun getCachedServices(): List<MiniAppService>
     fun getCachedEntryHtml(miniAppId: String): File?
     fun getRequiredPermissions(miniAppId: String): List<String>
+    suspend fun verifySessionToken(miniAppId: String): Boolean
     suspend fun recordLifecycleEvent(miniAppId: String, eventType: String, message: String = "")
 }

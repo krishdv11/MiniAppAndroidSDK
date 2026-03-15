@@ -30,6 +30,7 @@ This document maps each SDK behavior to concrete code locations so implementatio
     - partner auth
     - runtime list
     - download token
+    - session token
     - metrics event
 
 - DTOs for API request/response:
@@ -46,6 +47,7 @@ This document maps each SDK behavior to concrete code locations so implementatio
     - conditional zip download
     - checksum append
     - unzip + manifest verification
+    - session-token verification before webview load
     - metrics publishing
     - permission key parsing and mapping
 
@@ -143,3 +145,17 @@ This document maps each SDK behavior to concrete code locations so implementatio
 
 - Flowchart reference:
   - `docs/FLOWS.md`
+
+## 10) Cross-Platform Bridge Skeletons
+
+- React Native Android bridge example:
+  - `integrations/react-native/android/MiniAppSdkModule.kt`
+
+- Flutter Android plugin example:
+  - `integrations/flutter/android/MiniAppSdkFlutterPlugin.kt`
+
+Both wrappers expose native calls for:
+
+- `initMiniAppSDK`
+- `fetchMiniApps`
+- `openMiniApp`

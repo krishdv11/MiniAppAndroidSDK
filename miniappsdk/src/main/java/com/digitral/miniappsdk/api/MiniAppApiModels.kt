@@ -37,6 +37,15 @@ internal data class DownloadTokenData(
     val expiresIn: Long? = null
 )
 
+internal data class SessionTokenRequest(
+    val partnerId: String
+)
+
+internal data class SessionTokenData(
+    val token: String? = null,
+    val expiresIn: Long? = null
+)
+
 internal data class MetricsEventRequest(
     val appId: String,
     val version: String,

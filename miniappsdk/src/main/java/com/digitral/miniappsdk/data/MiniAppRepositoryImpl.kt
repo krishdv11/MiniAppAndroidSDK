@@ -10,6 +10,7 @@ import com.digitral.miniappsdk.api.DownloadTokenRequest
 import com.digitral.miniappsdk.api.MetricsEventRequest
 import com.digitral.miniappsdk.api.PartnerAuthRequest
 import com.digitral.miniappsdk.api.RuntimeMiniAppDto
+import com.digitral.miniappsdk.api.SessionTokenRequest
 import com.digitral.miniappsdk.domain.model.MiniAppService
 import com.digitral.miniappsdk.domain.repository.MiniAppRepository
 import okhttp3.OkHttpClient
@@ -130,6 +131,21 @@ internal class MiniAppRepositoryImpl(
     override fun getRequiredPermissions(miniAppId: String): List<String> {
         val permissionKeys = cacheManager.getSyncState().appPermissions[miniAppId].orEmpty()
         return permissionKeys.flatMap { key -> resolveAndroidPermissions(key) }.distinct()
+    }
+
+    override suspend fun verifySessionToken(miniAppId: String): Boolean {
+        if (miniAppId.isBlank()) return false
+        return try {
+            val bearer = getBearerTokenOrNull()
+            val response = fetchSessionTokenWithAuthFallback(miniAppId, bearer)
+            val token = response.data?.token.orEmpty()
+            val valid = token.isNotBlank()
+            MiniAppDebugLogger.d("session-token verification appId=$miniAppId valid=$valid")
+            valid
+        } catch (e: Exception) {
+            MiniAppDebugLogger.e("session-token verification failed appId=$miniAppId", e)
+            false
+        }
     }
 
     private fun resolveAndroidPermissions(rawKey: String): List<String> {
@@ -396,6 +412,30 @@ internal class MiniAppRepositoryImpl(
                 .data
                 .orEmpty()
                 .sortedBy { it.displayOrder ?: Int.MAX_VALUE }
+        }
+    }
+
+    private suspend fun fetchSessionTokenWithAuthFallback(
+        miniAppId: String,
+        bearer: String?
+    ) = try {
+        MiniAppDebugLogger.d("Fetching session-token for appId=$miniAppId with auth=${!bearer.isNullOrBlank()}")
+        miniAppRetryIO {
+            api.getSessionToken(
+                authorization = bearer,
+                appId = miniAppId,
+                request = SessionTokenRequest(partnerId = appId)
+            )
+        }
+    } catch (firstError: Exception) {
+        if (bearer.isNullOrBlank()) throw firstError
+        MiniAppDebugLogger.d("session-token with auth failed for appId=$miniAppId. Retrying without auth")
+        miniAppRetryIO {
+            api.getSessionToken(
+                authorization = null,
+                appId = miniAppId,
+                request = SessionTokenRequest(partnerId = appId)
+            )
         }
     }
 

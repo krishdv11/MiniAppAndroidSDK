@@ -264,6 +264,10 @@ public object MiniAppSDK {
 
         sdkScope.launch {
             try {
+                val sessionVerified = currentRepository.verifySessionToken(miniAppId)
+                if (!sessionVerified) {
+                    throw IllegalStateException("Session token verification failed")
+                }
                 val verifiedEntryFile = currentRepository.getCachedEntryHtml(miniAppId)
                     ?: throw IllegalStateException("Download In Progress")
 
@@ -320,6 +324,11 @@ public object MiniAppSDK {
     ) {
         val currentRepository = repository ?: return
         currentRepository.recordLifecycleEvent(miniAppId, eventType, message)
+    }
+
+    internal suspend fun verifySessionToken(miniAppId: String): Boolean {
+        val currentRepository = repository ?: return false
+        return currentRepository.verifySessionToken(miniAppId)
     }
 
     private fun configureLocalMiniAppWebView(settings: WebSettings): Unit {

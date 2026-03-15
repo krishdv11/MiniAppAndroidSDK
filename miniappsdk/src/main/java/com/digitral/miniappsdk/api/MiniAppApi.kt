@@ -27,6 +27,13 @@ internal interface MiniAppApi {
         @Body request: DownloadTokenRequest
     ): ApiEnvelope<DownloadTokenData>
 
+    @POST("miniapp/v1/runtime/{appId}/session-token")
+    suspend fun getSessionToken(
+        @Header("Authorization") authorization: String?,
+        @Path("appId") appId: String,
+        @Body request: SessionTokenRequest
+    ): ApiEnvelope<SessionTokenData>
+
     @POST("miniapp/v1/metrics/events")
     suspend fun recordEvent(
         @Header("Authorization") authorization: String?,
