@@ -1,5 +1,7 @@
 package com.digitral.miniappsdk.api
 
+// Internal API DTOs for network serialization/deserialization.
+
 import com.google.gson.JsonElement
 
 internal data class ApiEnvelope<T>(
@@ -14,7 +16,8 @@ internal data class PartnerAuthRequest(
 
 internal data class PartnerAuthData(
     val token: String? = null,
-    val expiresIn: Long? = null
+    val expiresIn: Long? = null,
+    val updatedDate: String? = null
 )
 
 internal data class DeviceInfo(
@@ -31,16 +34,6 @@ internal data class DownloadTokenData(
     val downloadUrl: String? = null,
     val checksum: String? = null,
     val artifactId: String? = null,
-    val expiresIn: Long? = null
-)
-
-internal data class SessionTokenRequest(
-    val userId: String,
-    val scope: List<String>
-)
-
-internal data class SessionTokenData(
-    val token: String? = null,
     val expiresIn: Long? = null
 )
 

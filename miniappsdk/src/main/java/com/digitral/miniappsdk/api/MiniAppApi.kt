@@ -1,5 +1,7 @@
 package com.digitral.miniappsdk.api
 
+// Internal Retrofit API definitions used by SDK data layer.
+
 import com.google.gson.JsonElement
 import retrofit2.http.Body
 import retrofit2.http.Header
@@ -24,13 +26,6 @@ internal interface MiniAppApi {
         @Path("appId") appId: String,
         @Body request: DownloadTokenRequest
     ): ApiEnvelope<DownloadTokenData>
-
-    @POST("miniapp/v1/runtime/{appId}/session-token")
-    suspend fun getSessionToken(
-        @Header("Authorization") authorization: String?,
-        @Path("appId") appId: String,
-        @Body request: SessionTokenRequest
-    ): ApiEnvelope<SessionTokenData>
 
     @POST("miniapp/v1/metrics/events")
     suspend fun recordEvent(

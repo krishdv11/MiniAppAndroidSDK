@@ -1,5 +1,7 @@
 package com.digitral.miniappsdk.domain.repository
 
+// Internal repository contract. Not exposed to host apps.
+
 import com.digitral.miniappsdk.domain.model.MiniAppService
 
 import java.io.File
@@ -7,7 +9,7 @@ import java.io.File
 internal interface MiniAppRepository {
     suspend fun syncAndCacheMiniApps(): List<MiniAppService>
     fun getCachedServices(): List<MiniAppService>
-    suspend fun ensureMiniAppCached(miniAppId: String): Boolean
-    suspend fun getSessionToken(miniAppId: String): String
     fun getCachedEntryHtml(miniAppId: String): File?
+    fun getRequiredPermissions(miniAppId: String): List<String>
+    suspend fun recordLifecycleEvent(miniAppId: String, eventType: String, message: String = "")
 }

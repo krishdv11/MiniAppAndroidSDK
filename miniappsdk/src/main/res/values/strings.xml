@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="banner_image_content_description">Mini app service banner image</string>
+    <string name="miniapp_container_title">Mini App</string>
+    <string name="miniapp_close">Close</string>
+    <string name="miniapp_load_failed">Mini app failed to load</string>
 </resources>

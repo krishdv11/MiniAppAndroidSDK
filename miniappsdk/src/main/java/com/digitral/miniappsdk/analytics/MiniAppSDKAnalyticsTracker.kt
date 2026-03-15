@@ -1,15 +1,17 @@
 package com.digitral.miniappsdk.analytics
 
+// Internal lightweight analytics/event logger used by SDK internals.
+
 import android.content.Context
 import android.util.Log
 
-internal class SDKAnalyticsTracker(
+internal class MiniAppSDKAnalyticsTracker(
     private val context: Context
 ) {
 
     private val tag: String = "MiniAppSDK-Analytics"
 
-    fun trackEvent(event: String): Unit {
+    internal fun trackEvent(event: String): Unit {
         Log.d(tag, "${context.packageName}:$event")
     }
 }

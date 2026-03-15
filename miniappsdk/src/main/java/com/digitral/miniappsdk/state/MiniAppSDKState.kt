@@ -1,33 +1,35 @@
 package com.digitral.miniappsdk.state
 
+// Internal SDK process state container.
+
 import android.content.Context
 
-internal object SDKState {
+internal object MiniAppSDKState {
     @Volatile
-    var context: Context? = null
+    internal var context: Context? = null
         private set
 
     @Volatile
-    var appId: String? = null
+    internal var appId: String? = null
         private set
 
     @Volatile
-    var baseUrl: String? = null
+    internal var baseUrl: String? = null
         private set
 
     @Volatile
-    var initialized: Boolean = false
+    internal var initialized: Boolean = false
         private set
 
     @Volatile
-    var partnerId: String? = null
+    internal var partnerId: String? = null
         private set
 
     @Volatile
-    var signature: String? = null
+    internal var signature: String? = null
         private set
 
-    fun set(
+    internal fun set(
         context: Context,
         appId: String,
         baseUrl: String,
@@ -43,7 +45,7 @@ internal object SDKState {
         this.signature = signature
     }
 
-    fun clear(): Unit {
+    internal fun clear(): Unit {
         context = null
         appId = null
         baseUrl = null

@@ -61,6 +61,37 @@ dependencies {
 }
 ```
 
+#### Option C: Prebuilt AAR integration (for QA/UAT handoff)
+
+Use one SDK for production behavior in both host debug and host release builds:
+
+- `release/miniappsdk-release.aar`
+
+Use debug SDK when you need verbose runtime logs (API request/response, flow logs, download progress):
+
+- `release/miniappsdk-debug.aar`
+
+Example host `app/build.gradle`:
+
+```kotlin
+dependencies {
+    // Single SDK for both host debug/release verification:
+    implementation(files("libs/miniappsdk-release.aar"))
+
+    // Optional: use this instead during deep debugging:
+    // implementation(files("libs/miniappsdk-debug.aar"))
+
+    // Required transitive runtime dependencies for local AAR usage:
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+    implementation("com.github.bumptech.glide:glide:4.16.0")
+    implementation("androidx.viewpager2:viewpager2:1.1.0")
+}
+```
+
 ### 2) Host app requirements
 
 Add network permission in your host app `AndroidManifest.xml`:
@@ -69,10 +100,35 @@ Add network permission in your host app `AndroidManifest.xml`:
 <uses-permission android:name="android.permission.INTERNET" />
 ```
 
+If your runtime API returns permissions (for example `camera`, `location`, `storage`), declare the corresponding Android permissions in the host app manifest so runtime requests can be shown when needed.
+
+#### Supported permission keys (API -> Android)
+
+| API permission key | Android runtime permission(s) requested by SDK |
+| --- | --- |
+| `camera` | `android.permission.CAMERA` |
+| `location` | `android.permission.ACCESS_FINE_LOCATION` |
+| `location_coarse`, `coarse_location` | `android.permission.ACCESS_COARSE_LOCATION` |
+| `background_location` | `android.permission.ACCESS_BACKGROUND_LOCATION` |
+| `storage`, `files` | Android 13+: `READ_MEDIA_IMAGES`, `READ_MEDIA_VIDEO`, `READ_MEDIA_AUDIO`; below 13: `READ_EXTERNAL_STORAGE`, `WRITE_EXTERNAL_STORAGE` |
+| `photos`, `images` | Android 13+: `READ_MEDIA_IMAGES`; below 13: `READ_EXTERNAL_STORAGE` |
+| `videos` | Android 13+: `READ_MEDIA_VIDEO`; below 13: `READ_EXTERNAL_STORAGE` |
+| `audio`, `media_audio` | Android 13+: `READ_MEDIA_AUDIO`; below 13: `READ_EXTERNAL_STORAGE` |
+| `microphone`, `mic`, `record_audio` | `android.permission.RECORD_AUDIO` |
+| `contacts` | `android.permission.READ_CONTACTS`, `android.permission.WRITE_CONTACTS` |
+| `calendar` | `android.permission.READ_CALENDAR`, `android.permission.WRITE_CALENDAR` |
+| `sms` | `android.permission.SEND_SMS`, `android.permission.RECEIVE_SMS`, `android.permission.READ_SMS` |
+| `phone` | `android.permission.READ_PHONE_STATE` |
+| `call_log` | `android.permission.READ_CALL_LOG` |
+| `bluetooth`, `nearby_devices` | Android 12+: `BLUETOOTH_SCAN`, `BLUETOOTH_CONNECT` |
+| `notifications`, `notification` | Android 13+: `android.permission.POST_NOTIFICATIONS` |
+| `network` | No runtime permission dialog (normal permission) |
+| `android.permission.*` | Passed through directly and requested as-is |
+
 ### 3) Initialize SDK (once at app launch)
 
 ```kotlin
-MiniAppSDK.initWithAppID(
+MiniAppSDK.initWith(
     context = applicationContext,
     appId = YOUR_APP_ID,
     secretKey = YOUR_SECRET_KEY,
@@ -83,7 +139,7 @@ MiniAppSDK.initWithAppID(
 ### 4) Read cached mini app list
 
 ```kotlin
-MiniAppSDK.getCachedMiniApps { result ->
+MiniAppSDK.fetchMiniApps { result ->
     result.onSuccess { services ->
         // Render list in host UI
     }.onFailure { error ->
@@ -95,7 +151,7 @@ MiniAppSDK.getCachedMiniApps { result ->
 ### 5) Load a mini app in WebView
 
 ```kotlin
-MiniAppSDK.loadMiniAppInWebView(
+MiniAppSDK.openApp(
     miniAppId = "com.gamma.finance",
     webView = webView
 ) { result ->
@@ -109,7 +165,7 @@ MiniAppSDK.loadMiniAppInWebView(
 
 ## Runtime Behavior Summary
 
-On `initWithAppID(...)`, SDK runs background sync:
+On `initWith(...)`, SDK runs background sync:
 
 1. partner auth (with safe fallback behavior)
 2. runtime mini app list fetch
@@ -118,12 +174,19 @@ On `initWithAppID(...)`, SDK runs background sync:
 5. zip download + checksum-part append + extraction
 6. zip download metrics event (`success`/`failed`)
 
-On mini app click/load:
+On mini app open (container path):
 
 1. check extracted cache
-2. if missing, prioritize per-miniapp cache creation
-3. fallback to full sync if needed
-4. load local extracted entry HTML into `WebView`
+2. if missing, return `Download In Progress`
+3. check/request runtime permissions based on API `permissions`
+4. launch full-screen mini app container in separate task
+5. load local extracted entry HTML into `WebView`
+6. publish lifecycle metrics (`AppLaunched`, `AppClosed`, bridge events)
+
+Debug AAR runtime logging:
+
+- tag: `MiniAppSDK-Debug`
+- includes request/response logs, fallback path logs, and zip download progress logs
 
 ## Framework Design Notes
 

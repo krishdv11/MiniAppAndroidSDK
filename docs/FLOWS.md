@@ -2,124 +2,154 @@
 
 This document captures end-to-end runtime flows for the Android SDK.
 
-## 0) Single End-to-End Flow (Consolidated)
-
-```mermaid
-sequenceDiagram
-    participant U as User
-    participant A as Host App
-    participant S as MiniAppSDK
-    participant P as Mini App Platform API
-    participant R as Artifact Storage
-    participant C as Local Cache
-    participant W as WebView
-
-    U->>A: Open app
-    A->>S: initWithAppID(context, appId, secretKey, domainUrl)
-    S->>P: partner/auth (optional/fallback-safe)
-    S->>P: runtime/list
-    P-->>S: mini app list
-    S->>C: save services.json
-
-    loop For each mini app
-        S->>P: runtime/{appId}/download-token
-        P-->>S: downloadUrl + checksum + artifactId
-        S->>R: download zip part-1
-        R-->>S: zip bytes
-        S->>S: append checksum bytes (part-2)
-        S->>C: unzip and store extracted files
-        S->>P: metrics/events (success/failure)
-    end
-
-    U->>A: Tap mini app
-    A->>S: loadMiniAppInWebView(miniAppId, webView)
-    S->>C: check extracted index.html
-    alt cache missing
-        S->>S: ensureMiniAppCached(miniAppId)
-        S->>P: runtime/list (if needed)
-        S->>P: runtime/{appId}/download-token
-        S->>R: download + checksum append
-        S->>C: unzip and store
-    end
-    S->>W: load file://.../index.html
-    W-->>U: Mini app rendered
-```
-
-## 1) SDK Initialization and Background Sync
+## 0) Final E2E Flow (Authoritative)
 
 ```mermaid
 flowchart TD
-    A[Host App Calls MiniAppSDK.initWithAppID] --> B[Validate Inputs]
-    B --> C[Create OkHttp + Retrofit + API]
-    C --> D[Initialize Repository + SDK State]
-    D --> E[Launch Background syncAndCacheMiniApps]
-    E --> F[Partner Auth Optional Fallback]
-    F --> G[Fetch Runtime Mini App List]
-    G --> H[Save Services to Cache]
-    H --> I[For Each Mini App]
-    I --> J[Call download-token]
-    J --> K[Download Zip]
-    K --> L[Append checksum bytes part]
-    L --> M[Extract to Cache]
-    M --> N[Record Metrics Success or Failure]
-```
 
-## 2) Cached Mini App List Read
+User[User Opens SuperApp]
 
-```mermaid
-flowchart TD
-    A[Host Calls getCachedMiniApps] --> B[Check SDK Initialized]
-    B --> C[Read services.json from Cache]
-    C --> D{Cache Exists?}
-    D -->|Yes| E[Return List]
-    D -->|No| F[Return Empty List]
-```
+User --> Init[Host App calls initMiniAppSDK(appId, secretKey, domainURL)]
 
-## 3) Mini App Click and WebView Load
+Init --> AuthCheck{Is Partner Auth Enabled?}
 
-```mermaid
-flowchart TD
-    A[Host Calls loadMiniAppInWebView appId] --> B[Check SDK Initialized]
-    B --> C[Find Cached index.html]
-    C --> D{Found?}
-    D -->|Yes| H[Configure WebView for Local Files]
-    D -->|No| E[ensureMiniAppCached appId]
-    E --> F{Found After Ensure?}
-    F -->|Yes| H
-    F -->|No| G[syncAndCacheMiniApps Fallback]
-    G --> I{Found After Sync?}
-    I -->|No| J[Return Error Mini app zip not cached]
-    I -->|Yes| H
-    H --> K[Load file://.../index.html]
-    K --> L[Return Success]
-```
+AuthCheck -->|Yes| AuthAPI[Call /miniapp/v1/partner/auth]
+AuthCheck -->|No| FirstInit
 
-## 4) Per-MiniApp Cache Creation
+AuthAPI --> AuthResponse[Receive token + updatedDate]
+AuthResponse --> FirstInit
 
-```mermaid
-flowchart TD
-    A[ensureMiniAppCached appId] --> B{Already Extracted?}
-    B -->|Yes| C[Return True]
-    B -->|No| D[Fetch Runtime List]
-    D --> E[Resolve Matching Runtime Item]
-    E --> F[Call download-token]
-    F --> G[Download Zip]
-    G --> H[Append checksum bytes]
-    H --> I[Extract Zip]
-    I --> J[Record Metric]
-    J --> K[Return index.html Exists]
-```
+FirstInit{Is First SDK Initialization?}
 
-## 5) Download Token Fallback Behavior
+FirstInit -->|Yes| FetchMiniApps
+FirstInit -->|No| CacheCheck
 
-```mermaid
-flowchart TD
-    A[Request download-token with Authorization] --> B{Success?}
-    B -->|Yes| C[Continue Download Flow]
-    B -->|No| D{Bearer Present?}
-    D -->|No| E[Fail Request]
-    D -->|Yes| F[Retry download-token Without Authorization]
-    F --> G{Success?}
-    G -->|Yes| C
-    G -->|No| E
+FetchMiniApps[Call fetchMiniApps API]
+
+FetchMiniApps --> StoreCache[Store MiniApps List in Encrypted SDK Cache]
+
+StoreCache --> VersionCheck
+
+CacheCheck{Does cached updatedDate match auth updatedDate?}
+
+CacheCheck -->|Yes| LoadCache
+CacheCheck -->|No| FetchMiniApps
+
+LoadCache[Load MiniApps from Cache]
+
+LoadCache --> VersionCheck
+
+VersionCheck{latestVersion OR bridgeVersion changed?}
+
+VersionCheck -->|No| SkipDownload
+VersionCheck -->|Yes| StartDownload
+
+SkipDownload[Use Cached ZIP]
+
+StartDownload --> EventStart
+
+EventStart[Capture Event: ZipDownloadInitiated]
+
+EventStart --> DownloadZip
+
+DownloadZip[Download ZIP with Resume Support]
+
+DownloadZip --> ResumeCheck{Download Complete?}
+
+ResumeCheck -->|No| ResumeDownload
+ResumeCheck -->|Corrupted| RestartDownload
+ResumeCheck -->|Yes| VerifyManifest
+
+ResumeDownload[Resume Download]
+
+RestartDownload[Restart Download]
+
+VerifyManifest[Verify Manifest]
+
+VerifyManifest --> ManifestValid{Manifest Valid?}
+
+ManifestValid -->|Yes| ExtractZip
+ManifestValid -->|No| ManifestFail
+
+ManifestFail[Capture Event: ManifestVerifyFailed]
+
+ExtractZip --> ExtractSuccess{Extraction Successful?}
+
+ExtractSuccess -->|Yes| ExtractDone
+ExtractSuccess -->|No| ExtractFail
+
+ExtractDone[Capture Events:\nZipDownloadCompleted\nManifestVerified\nZipExtracted]
+
+ExtractFail[Capture Event: ZipExtractFailed]
+
+SkipDownload --> MiniAppList
+ExtractDone --> MiniAppList
+
+MiniAppList[SDK Returns MiniApps List]
+
+MiniAppList --> UIChoice
+
+UIChoice{UI Type}
+
+UIChoice -->|Custom UI| HostUI
+UIChoice -->|Default UI| DefaultUI
+
+HostUI --> TapMiniApp
+DefaultUI --> TapMiniApp
+
+TapMiniApp[User Taps Mini App]
+
+TapMiniApp --> OpenMiniApp[Host App Calls openMiniApp()]
+
+OpenMiniApp --> DownloadCheck{ZIP Already Downloaded?}
+
+DownloadCheck -->|No| DownloadStatus
+DownloadCheck -->|Yes| PermissionCheck
+
+DownloadStatus[Return 'Download In Progress']
+
+PermissionCheck[Check Required Permissions\n(camera, location, storage)]
+
+PermissionCheck --> PermissionGrantedCheck{Permissions Already Granted?}
+
+PermissionGrantedCheck -->|Yes| LaunchMiniApp
+PermissionGrantedCheck -->|No| RequestPermission
+
+RequestPermission[Show System Permission Dialog]
+
+RequestPermission --> PermissionResult{User Decision}
+
+PermissionResult -->|Granted| GrantEvent
+PermissionResult -->|Denied| DenyEvent
+
+GrantEvent[Capture Event: PermissionGranted]
+
+DenyEvent[Capture Event: PermissionDenied]
+
+GrantEvent --> LaunchMiniApp
+DenyEvent --> StopLaunch
+
+StopLaunch[Return Permission Error]
+
+LaunchMiniApp[Open Mini App in Fullscreen Container\n(WebView / MiniApp Container)]
+
+LaunchMiniApp --> BridgeConnect
+
+BridgeConnect[Establish Bridge Communication]
+
+BridgeConnect --> LaunchEvent
+
+LaunchEvent[Capture Events:\nAppLaunched\nBridgeConnected]
+
+LaunchEvent --> Running
+
+Running[Mini App Running Like Separate App]
+
+Running --> CloseMiniApp
+
+CloseMiniApp[User Closes Mini App]
+
+CloseMiniApp --> CloseEvents
+
+CloseEvents[Capture Events:\nAppClosed\nBridgeDisconnected]
 ```

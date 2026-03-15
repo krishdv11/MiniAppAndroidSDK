@@ -1,9 +1,11 @@
 package com.digitral.miniappsdk.data
 
+// Internal retry helper for transient IO/network operations.
+
 import java.io.IOException
 import kotlinx.coroutines.delay
 
-internal suspend fun <T> retryIO(
+internal suspend fun <T> miniAppRetryIO(
     times: Int = 3,
     block: suspend () -> T
 ): T {
@@ -24,5 +26,5 @@ internal suspend fun <T> retryIO(
         }
     }
 
-    throw lastException ?: IOException("retryIO failed without IOException context")
+    throw lastException ?: IOException("miniAppRetryIO failed without IOException context")
 }

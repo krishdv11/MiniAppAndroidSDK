@@ -39,20 +39,6 @@ class MainActivity : AppCompatActivity() {
             loadMiniApp(selected.id)
         }
 
-        supportFragmentManager.setFragmentResultListener(
-            MiniAppWebViewDialogFragment.REQUEST_KEY,
-            this
-        ) { _, bundle ->
-            setLoading(false)
-            val success = bundle.getBoolean(MiniAppWebViewDialogFragment.KEY_SUCCESS, false)
-            val errorMessage = bundle.getString(MiniAppWebViewDialogFragment.KEY_ERROR_MESSAGE)
-            if (success) {
-                status.text = "Mini app loaded"
-            } else {
-                status.text = "Mini app load failed: $errorMessage"
-            }
-        }
-
         // Initialize SDK when app launches so sync starts immediately.
         initializeSdk()
     }
@@ -61,7 +47,7 @@ class MainActivity : AppCompatActivity() {
         setLoading(true)
         status.text = "Initializing SDK..."
         try {
-            MiniAppSDK.initWithAppID(
+            MiniAppSDK.initWith(
                 context = applicationContext,
                 appId = "p_a1b2c3d4",
                 secretKey = "partner-signature",
@@ -80,7 +66,7 @@ class MainActivity : AppCompatActivity() {
     private fun loadCachedMiniApps() {
         setLoading(true)
         status.text = "Loading cached mini apps..."
-        MiniAppSDK.getCachedMiniApps { result ->
+        MiniAppSDK.fetchMiniApps { result ->
             result.onSuccess { list ->
                 runOnUiThread {
                     cachedMiniApps = list
@@ -105,19 +91,26 @@ class MainActivity : AppCompatActivity() {
 
     private fun loadMiniApp(miniAppId: String) {
         setLoading(true)
-        status.text = "Loading mini app in WebView..."
-        val fragment = MiniAppWebViewDialogFragment.newInstance(miniAppId)
-        fragment.show(supportFragmentManager, MiniAppWebViewDialogFragment.TAG)
+        status.text = "Opening mini app..."
+        MiniAppSDK.openMiniApp(miniAppId) { result ->
+            runOnUiThread {
+                setLoading(false)
+                result.onSuccess {
+                    status.text = "Mini app opened"
+                }.onFailure { error ->
+                    status.text = "Mini app open failed: ${error.message}"
+                    Toast.makeText(
+                        this,
+                        "Mini app open failed: ${error.message}",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+        }
     }
 
     private fun setLoading(loading: Boolean) {
         progress.visibility = if (loading) android.view.View.VISIBLE else android.view.View.GONE
     }
 
-    override fun onDestroy() {
-        if (supportFragmentManager.isDestroyed.not()) {
-            supportFragmentManager.clearFragmentResultListener(MiniAppWebViewDialogFragment.REQUEST_KEY)
-        }
-        super.onDestroy()
-    }
 }

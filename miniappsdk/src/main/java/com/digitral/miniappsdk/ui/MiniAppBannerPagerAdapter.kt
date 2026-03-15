@@ -1,5 +1,7 @@
 package com.digitral.miniappsdk.ui
 
+// Internal default banner UI adapter returned by fetchMiniAppsWithUI.
+
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -12,9 +14,9 @@ import com.digitral.miniappsdk.MiniAppSDK
 import com.digitral.miniappsdk.R
 import com.digitral.miniappsdk.domain.model.MiniAppService
 
-internal class BannerPagerAdapter(
+internal class MiniAppBannerPagerAdapter(
     private val services: List<MiniAppService>
-) : RecyclerView.Adapter<BannerPagerAdapter.BannerViewHolder>() {
+) : RecyclerView.Adapter<MiniAppBannerPagerAdapter.BannerViewHolder>() {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): BannerViewHolder {
         val view = LayoutInflater.from(parent.context)
@@ -36,8 +38,8 @@ internal class BannerPagerAdapter(
     override fun getItemCount(): Int = services.size
 
     internal class BannerViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        val image: ImageView = itemView.findViewById(R.id.bannerImage)
-        val title: TextView = itemView.findViewById(R.id.bannerTitle)
-        val description: TextView = itemView.findViewById(R.id.bannerDescription)
+        internal val image: ImageView = itemView.findViewById(R.id.bannerImage)
+        internal val title: TextView = itemView.findViewById(R.id.bannerTitle)
+        internal val description: TextView = itemView.findViewById(R.id.bannerDescription)
     }
 }
