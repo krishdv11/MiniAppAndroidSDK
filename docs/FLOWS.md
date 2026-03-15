@@ -99,16 +99,16 @@ DefaultUI --> TapMiniApp
 
 TapMiniApp[User Taps Mini App]
 
-TapMiniApp --> OpenMiniApp[Host App Calls openMiniApp()]
+TapMiniApp --> OpenMiniApp[Host App Calls openMiniApp]
 
 OpenMiniApp --> DownloadCheck{ZIP Already Downloaded?}
 
 DownloadCheck -->|No| DownloadStatus
 DownloadCheck -->|Yes| PermissionCheck
 
-DownloadStatus[Return 'Download In Progress']
+DownloadStatus[Return Download In Progress]
 
-PermissionCheck[Check Required Permissions\n(camera, location, storage)]
+PermissionCheck[Check Required Permissions\ncamera, location, storage]
 
 PermissionCheck --> PermissionGrantedCheck{Permissions Already Granted?}
 
@@ -131,11 +131,11 @@ DenyEvent --> StopLaunch
 
 StopLaunch[Return Permission Error]
 
-LaunchMiniApp[Open Mini App in Fullscreen Container\n(WebView / MiniApp Container)]
+LaunchMiniApp[Open Mini App in Fullscreen Container]
 
 LaunchMiniApp --> SessionTokenCall
 
-SessionTokenCall[Call /miniapp/v1/runtime/:appId/session-token]
+SessionTokenCall[Call runtime session token API]
 
 SessionTokenCall --> SessionTokenValid{Session token valid?}
 
@@ -160,3 +160,5 @@ CloseMiniApp --> CloseEvents
 
 CloseEvents[Capture Events:\nAppClosed\nBridgeDisconnected]
 ```
+
+Session token endpoint used in the flow: `POST /miniapp/v1/runtime/{appId}/session-token`.
