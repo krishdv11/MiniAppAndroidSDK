@@ -7,10 +7,11 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.view.View
-import android.view.ViewGroup
 import android.webkit.WebSettings
+import android.webkit.WebResourceError
+import android.webkit.WebResourceRequest
 import android.webkit.WebView
-import androidx.viewpager2.widget.ViewPager2
+import android.webkit.WebViewClient
 import com.digitral.miniappsdk.analytics.MiniAppSDKAnalyticsTracker
 import com.digitral.miniappsdk.api.MiniAppApi
 import com.digitral.miniappsdk.data.MiniAppCacheManager
@@ -19,7 +20,7 @@ import com.digitral.miniappsdk.data.MiniAppRepositoryImpl
 import com.digitral.miniappsdk.domain.model.MiniAppService
 import com.digitral.miniappsdk.domain.repository.MiniAppRepository
 import com.digitral.miniappsdk.state.MiniAppSDKState
-import com.digitral.miniappsdk.ui.MiniAppBannerPagerAdapter
+import com.digitral.miniappsdk.ui.MiniAppCategorizedViewFactory
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -32,6 +33,18 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
 public object MiniAppSDK {
+
+    public enum class MiniAppUIOption {
+        NAME_ONLY,
+        NAME_WITH_ICON,
+        BANNER
+    }
+
+    public interface MiniAppUICallback {
+        public fun onMiniAppClicked(service: MiniAppService): Unit = Unit
+        public fun onMiniAppOpenSuccess(service: MiniAppService): Unit = Unit
+        public fun onMiniAppOpenFailure(service: MiniAppService, error: Throwable): Unit = Unit
+    }
 
     private val sdkScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -172,6 +185,25 @@ public object MiniAppSDK {
     // Public API: fetch mini app list and return SDK-provided default UI.
     public fun fetchMiniAppsWithUI(
         callback: (Result<View>) -> Unit
+    ): Unit = fetchMiniAppsWithUI(
+        option = MiniAppUIOption.BANNER,
+        uiCallback = null,
+        callback = callback
+    )
+
+    @JvmStatic
+    // Public API: fetch mini app list and return SDK-provided UI by option.
+    public fun fetchMiniAppsWithUI(
+        option: MiniAppUIOption,
+        callback: (Result<View>) -> Unit
+    ): Unit = fetchMiniAppsWithUI(option, null, callback)
+
+    @JvmStatic
+    // Public API: fetch mini app list and return SDK-provided UI with user interaction callbacks.
+    public fun fetchMiniAppsWithUI(
+        option: MiniAppUIOption,
+        uiCallback: MiniAppUICallback?,
+        callback: (Result<View>) -> Unit
     ): Unit {
         fetchMiniApps { result ->
             result.onSuccess { services ->
@@ -182,14 +214,21 @@ public object MiniAppSDK {
                         callback(Result.failure(IllegalStateException("No mini apps available to render")))
                         return@onSuccess
                     }
-                    val viewPager = ViewPager2(context).apply {
-                        layoutParams = ViewGroup.LayoutParams(
-                            ViewGroup.LayoutParams.MATCH_PARENT,
-                            context.resources.getDimensionPixelSize(R.dimen.miniapp_banner_min_height)
-                        )
-                        adapter = MiniAppBannerPagerAdapter(services)
+                    val categorizedView = MiniAppCategorizedViewFactory.build(
+                        context = context,
+                        services = services,
+                        option = option
+                    ) { selectedService ->
+                        uiCallback?.onMiniAppClicked(selectedService)
+                        openMiniApp(selectedService.id) { openResult ->
+                            openResult.onSuccess {
+                                uiCallback?.onMiniAppOpenSuccess(selectedService)
+                            }.onFailure { error ->
+                                uiCallback?.onMiniAppOpenFailure(selectedService, error)
+                            }
+                        }
                     }
-                    callback(Result.success(viewPager))
+                    callback(Result.success(categorizedView))
                 } catch (e: Exception) {
                     callback(Result.failure(e))
                 }
@@ -273,10 +312,36 @@ public object MiniAppSDK {
 
                 withContext(Dispatchers.Main) {
                     configureLocalMiniAppWebView(webView.settings)
+                    var callbackDispatched = false
+                    webView.webViewClient = object : WebViewClient() {
+                        override fun onPageFinished(view: WebView?, url: String?) {
+                            if (!callbackDispatched) {
+                                callbackDispatched = true
+                                callback(Result.success(Unit))
+                            }
+                        }
+
+                        override fun onReceivedError(
+                            view: WebView?,
+                            request: WebResourceRequest?,
+                            error: WebResourceError?
+                        ) {
+                            if (request?.isForMainFrame == true && !callbackDispatched) {
+                                callbackDispatched = true
+                                callback(
+                                    Result.failure(
+                                        IllegalStateException(
+                                            error?.description?.toString()
+                                                ?: "Mini app failed to load in WebView"
+                                        )
+                                    )
+                                )
+                            }
+                        }
+                    }
                     val loadUrl = verifiedEntryFile.toURI().toString()
                     webView.loadUrl(loadUrl)
                     MiniAppDebugLogger.d("openApp(webView) loaded url=$loadUrl")
-                    callback(Result.success(Unit))
                 }
             } catch (e: Exception) {
                 MiniAppDebugLogger.e("openApp(webView) failed miniAppId=$miniAppId: ${e.message}", e)

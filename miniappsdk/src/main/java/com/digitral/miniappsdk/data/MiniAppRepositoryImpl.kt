@@ -315,7 +315,8 @@ internal class MiniAppRepositoryImpl(
                 id = fallbackServiceId,
                 title = runtime.name?.takeIf { it.isNotBlank() } ?: fallbackServiceId,
                 description = runtime.category.orEmpty(),
-                imageUrl = runtime.iconUrl.orEmpty()
+                imageUrl = runtime.iconUrl.orEmpty(),
+                category = runtime.category.orEmpty()
             )
             val version = runtime.latestVersion?.takeIf { it.isNotBlank() } ?: "1.0.0"
             if (e.message?.contains("Manifest verification failed", ignoreCase = true) == true) {
@@ -584,12 +585,13 @@ internal class MiniAppRepositoryImpl(
         val categoryText = category?.takeIf { it.isNotBlank() }
         val versionText = latestVersion?.takeIf { it.isNotBlank() }
         val serviceDescription = listOfNotNull(categoryText, versionText?.let { "v$it" }).joinToString(" | ")
-            .ifBlank { "Mini app service" }
+            .ifBlank { versionText?.let { "v$it" } ?: "Mini app service" }
         return MiniAppService(
             id = serviceId,
             title = serviceTitle,
-            description = serviceDescription,
-            imageUrl = iconUrl.orEmpty()
+            description = versionText?.let { "v$it" } ?: serviceDescription,
+            imageUrl = iconUrl.orEmpty(),
+            category = categoryText.orEmpty()
         )
     }
 

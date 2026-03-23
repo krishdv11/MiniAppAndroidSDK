@@ -160,6 +160,25 @@ MiniAppSDK.openApp(
 }
 ```
 
+### 6) SDK-provided categorized UI (3 options)
+
+```kotlin
+MiniAppSDK.fetchMiniAppsWithUI(
+    option = MiniAppSDK.MiniAppUIOption.NAME_WITH_ICON,
+    uiCallback = object : MiniAppSDK.MiniAppUICallback {}
+) { result ->
+    result.onSuccess { sdkView ->
+        // Add sdkView into your container
+    }
+}
+```
+
+Supported UI options:
+
+- `MiniAppUIOption.NAME_ONLY` (category-wise vertical list)
+- `MiniAppUIOption.NAME_WITH_ICON` (category-wise horizontal cards)
+- `MiniAppUIOption.BANNER` (category-wise horizontal banners)
+
 ## Runtime Behavior Summary
 
 On `initWith(...)`, SDK runs background sync:
@@ -197,6 +216,8 @@ Debug AAR runtime logging:
 For complete diagrams of all major flows, see:
 
 - `docs/FLOWS.md`
+- `docs/SDK_REBUILD_PLAYBOOK.md` (step-by-step rebuild from scratch)
+- `docs/SDK_UI_OPTIONS_UPDATE.md` (category-wise 3 UI modes update)
 
 ## iOS Reference
 

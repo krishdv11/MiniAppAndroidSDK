@@ -5,5 +5,10 @@
     <string name="load_cached_miniapps">Load Cached Mini Apps</string>
     <string name="close_miniapp">Close</string>
     <string name="miniapp_load_failed">Mini app load failed</string>
-    <string name="status_idle">Status: Idle</string>
+    <string name="status_idle">SDK is initialized. Syncing cache in background.</string>
+    <string name="ui_name_only">Names</string>
+    <string name="ui_name_icon">Name+Icon</string>
+    <string name="ui_banner">Banner</string>
+    <string name="mini_apps">Mini Apps</string>
+    <string name="tap_any_mini_app">Tap any mini app to launch.</string>
 </resources>
