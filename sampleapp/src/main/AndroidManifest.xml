@@ -9,6 +9,12 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.SampleApp">
         <activity
+            android:name=".FetchMiniAppsActivity"
+            android:exported="false" />
+        <activity
+            android:name=".FetchMiniAppsWithUiActivity"
+            android:exported="false" />
+        <activity
             android:name=".MainActivity"
             android:exported="true">
             <intent-filter>

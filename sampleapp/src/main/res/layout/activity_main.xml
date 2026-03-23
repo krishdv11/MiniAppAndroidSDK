@@ -18,7 +18,7 @@
             android:id="@+id/tvHeaderTitle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@string/mini_apps"
+            android:text="@string/select_sample_flow"
             android:textColor="#111111"
             android:textSize="24sp"
             android:textStyle="bold" />
@@ -28,69 +28,43 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="6dp"
-            android:text="@string/status_idle"
+            android:text="@string/status_select_flow"
             android:textColor="#7A7A85"
             android:textSize="14sp" />
     </LinearLayout>
 
-    <RadioGroup
-        android:id="@+id/uiOptionGroup"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="12dp"
-        android:background="@drawable/sample_segment_bg"
-        android:orientation="horizontal"
-        android:padding="2dp">
+        android:orientation="vertical">
 
-        <RadioButton
-            android:id="@+id/rbNameOnly"
-            android:layout_width="0dp"
+        <Button
+            android:id="@+id/btnOpenFetchMiniAppsScreen"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:button="@null"
-            android:background="@drawable/sample_segment_option_bg"
-            android:checked="true"
-            android:gravity="center"
+            android:background="@drawable/sample_mode_button_bg"
             android:padding="10dp"
-            android:text="@string/ui_name_only" />
+            android:text="@string/mode_fetch_miniapps"
+            android:textAllCaps="false" />
 
-        <RadioButton
-            android:id="@+id/rbNameIcon"
-            android:layout_width="0dp"
+        <Button
+            android:id="@+id/btnOpenFetchMiniAppsWithUiScreen"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:button="@null"
-            android:background="@drawable/sample_segment_option_bg"
-            android:gravity="center"
+            android:layout_marginTop="10dp"
+            android:background="@drawable/sample_mode_button_bg"
             android:padding="10dp"
-            android:text="@string/ui_name_icon" />
-
-        <RadioButton
-            android:id="@+id/rbBanner"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:button="@null"
-            android:background="@drawable/sample_segment_option_bg"
-            android:gravity="center"
-            android:padding="10dp"
-            android:text="@string/ui_banner" />
-    </RadioGroup>
+            android:text="@string/mode_fetch_miniapps_with_ui"
+            android:textAllCaps="false" />
+    </LinearLayout>
 
     <TextView
         android:id="@+id/tvHint"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="10dp"
-        android:text="@string/tap_any_mini_app"
+        android:layout_marginTop="14dp"
+        android:text="@string/select_flow_hint"
         android:textColor="#7A7A85"
         android:textSize="14sp" />
-
-    <FrameLayout
-        android:id="@+id/miniAppUiContainer"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_marginTop="8dp"
-        android:layout_weight="1" />
-
 </LinearLayout>
