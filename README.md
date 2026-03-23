@@ -216,7 +216,7 @@ Debug AAR runtime logging:
 For complete diagrams of all major flows, see:
 
 - `docs/FLOWS.md`
-- `docs/SDK_REBUILD_PLAYBOOK.md` (step-by-step rebuild from scratch)
+- `docs/SDK_IMPLEMENTATION_GUIDE.md` (step-by-step implementation guide)
 - `docs/SDK_UI_OPTIONS_UPDATE.md` (category-wise 3 UI modes update)
 
 ## iOS Reference
